@@ -1,0 +1,563 @@
+<!doctype html>
+<title>Hopon Food Automation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#f5f7fa;
+    --surface:#ffffff;
+    --surface-2:#edf0f4;
+    --ink:#161a20;
+    --ink-dim:#5a6472;
+    --line:#dce1e7;
+    --accent:#0f7d76;
+    --accent-strong:#0a5f5a;
+    --accent-tint:#e3f3f1;
+    --customer:#218a5e;
+    --customer-tint:#e3f5ec;
+    --restaurant:#bd6a0d;
+    --restaurant-tint:#fbeddb;
+    --driver:#3053c9;
+    --driver-tint:#e7ecfb;
+    --danger:#b5432f;
+    --shadow: 0 1px 2px rgba(20,24,30,.04), 0 8px 24px -12px rgba(20,24,30,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12151a;
+      --surface:#1a1f26;
+      --surface-2:#20262e;
+      --ink:#e9ecf0;
+      --ink-dim:#9aa4b2;
+      --line:#2c333c;
+      --accent:#3db9af;
+      --accent-strong:#5fd0c6;
+      --accent-tint:#153331;
+      --customer:#4fc989;
+      --customer-tint:#173428;
+      --restaurant:#e59a4c;
+      --restaurant-tint:#3a2a15;
+      --driver:#7d97ff;
+      --driver-tint:#1c2440;
+      --danger:#e2705c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12151a;
+    --surface:#1a1f26;
+    --surface-2:#20262e;
+    --ink:#e9ecf0;
+    --ink-dim:#9aa4b2;
+    --line:#2c333c;
+    --accent:#3db9af;
+    --accent-strong:#5fd0c6;
+    --accent-tint:#153331;
+    --customer:#4fc989;
+    --customer-tint:#173428;
+    --restaurant:#e59a4c;
+    --restaurant-tint:#3a2a15;
+    --driver:#7d97ff;
+    --driver-tint:#1c2440;
+    --danger:#e2705c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px -12px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    line-height:1.65;
+    padding-inline:16px;
+    font-size:16px;
+  }
+  .page{max-width:760px;margin:0 auto;padding-block:48px 96px}
+
+  h1,h2,h3{
+    font-family:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color:var(--ink);
+    text-wrap:balance;
+    line-height:1.25;
+  }
+  a{color:var(--accent-strong)}
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---------- Header ---------- */
+  header.hero{margin-bottom:44px}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:.72rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin:0 0 10px;
+  }
+  h1{font-size:2.15rem;font-weight:800;letter-spacing:-.01em;margin:0 0 12px}
+  .lede{color:var(--ink-dim);font-size:1.05rem;max-width:62ch;margin:0 0 28px}
+
+  .pipeline{
+    display:flex;align-items:stretch;gap:0;
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    background:var(--surface);box-shadow:var(--shadow);
+  }
+  .pipeline .stage{
+    flex:1 1 0;min-width:0;
+    padding:16px 18px;
+    display:flex;flex-direction:column;gap:4px;
+    border-left:1px solid var(--line);
+  }
+  .pipeline .stage:first-child{border-left:none}
+  .pipeline .stage b{font-size:.95rem;font-weight:600}
+  .pipeline .stage span{font-size:.82rem;color:var(--ink-dim);font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pipeline .stage.customer{border-top:3px solid var(--customer)}
+  .pipeline .stage.restaurant{border-top:3px solid var(--restaurant)}
+  .pipeline .stage.driver{border-top:3px solid var(--driver)}
+  .pipeline .arrow{
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:1.1rem;
+    padding-inline:2px;flex:0 0 auto;
+  }
+  @media (max-width:560px){
+    .pipeline{flex-direction:column}
+    .pipeline .stage{border-left:none;border-top:1px solid var(--line)}
+    .pipeline .stage:first-child{border-top:none}
+    .pipeline .stage.customer{border-top:1px solid var(--line);border-left:3px solid var(--customer)}
+    .pipeline .stage.restaurant{border-left:3px solid var(--restaurant)}
+    .pipeline .stage.driver{border-left:3px solid var(--driver)}
+    .pipeline .arrow{transform:rotate(90deg);padding-block:2px}
+  }
+
+  /* ---------- Sections ---------- */
+  section{margin-block:52px}
+  section > h2{
+    display:flex;align-items:baseline;gap:12px;
+    font-size:1.28rem;font-weight:700;margin:0 0 18px;
+    padding-bottom:10px;border-bottom:1px solid var(--line);
+  }
+  section > h2 .num{
+    font-size:.78rem;font-weight:700;color:var(--accent-strong);
+    background:var(--accent-tint);border-radius:6px;
+    padding:3px 8px;flex:0 0 auto;
+  }
+  h3{font-size:1.02rem;font-weight:600;margin:26px 0 10px}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:1.3em}
+  li{margin-bottom:6px}
+  code{
+    font-family:'JetBrains Mono',monospace;font-size:.86em;
+    background:var(--surface-2);border:1px solid var(--line);
+    border-radius:4px;padding:.1em .4em;
+  }
+  strong{font-weight:600}
+
+  /* ---------- Code / command blocks (light, theme-following) ---------- */
+  .codeblock{
+    position:relative;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:10px;margin:14px 0;overflow:hidden;
+  }
+  .codeblock pre{
+    margin:0;padding:16px 44px 16px 16px;overflow-x:auto;
+    font-family:'JetBrains Mono',monospace;font-size:.84rem;line-height:1.6;color:var(--ink);
+  }
+  .codeblock .copy{
+    position:absolute;top:8px;right:8px;
+    font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.04em;
+    background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);
+    border-radius:6px;padding:4px 8px;cursor:pointer;
+  }
+  .codeblock .copy:hover{color:var(--ink);border-color:var(--accent)}
+
+  /* ---------- Terminal (deliberate fixed-dark device, independent of page theme) ---------- */
+  .terminal{
+    background:#0d1117;border-radius:10px;overflow:hidden;
+    box-shadow:var(--shadow); margin:16px 0;
+  }
+  .terminal .bar{
+    display:flex;gap:6px;align-items:center;padding:10px 14px;
+    background:#161b22;border-bottom:1px solid #262c36;
+  }
+  .terminal .bar i{width:9px;height:9px;border-radius:50%;background:#3a4048;display:inline-block}
+  .terminal .bar span{margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#7d8590}
+  .terminal pre{
+    margin:0;padding:16px 18px;overflow-x:auto;
+    font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.7;color:#c9d1d9;
+    white-space:pre;
+  }
+  .terminal .tag{font-weight:700}
+  .terminal .tag-customer{color:#5fdb9a}
+  .terminal .tag-restaurant{color:#f0a860}
+  .terminal .tag-driver{color:#8fa8ff}
+  .terminal .tag-result{color:#f0e176}
+  .terminal .dim{color:#7d8590}
+
+  /* ---------- Tables ---------- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:14px 0}
+  table{width:100%;border-collapse:collapse;background:var(--surface);font-size:.92rem}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{
+    font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-dim);background:var(--surface-2);font-weight:600;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td code{white-space:nowrap}
+
+  .tag{
+    display:inline-flex;align-items:center;gap:5px;
+    font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700;
+    padding:2px 8px;border-radius:999px;white-space:nowrap;
+  }
+  .tag.customer{background:var(--customer-tint);color:var(--customer)}
+  .tag.restaurant{background:var(--restaurant-tint);color:var(--restaurant)}
+  .tag.driver{background:var(--driver-tint);color:var(--driver)}
+  .tag.confirmed{background:var(--customer-tint);color:var(--customer)}
+  .tag.stub{background:var(--restaurant-tint);color:var(--restaurant)}
+
+  /* ---------- Callouts ---------- */
+  .callout{
+    border:1px solid var(--line);border-left:3px solid var(--accent);
+    background:var(--accent-tint);border-radius:0 10px 10px 0;
+    padding:14px 16px;margin:16px 0;font-size:.93rem;
+  }
+  .callout.warn{border-left-color:var(--danger)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{
+    font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent-strong);display:block;margin-bottom:6px;font-weight:700;
+  }
+  .callout.warn .label{color:var(--danger)}
+
+  /* ---------- File tree ---------- */
+  .tree{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;margin:14px 0;
+  }
+  .tree pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.65;color:var(--ink)}
+  .tree .stub{color:var(--restaurant)}
+  .tree .ok{color:var(--customer)}
+  .tree .path{color:var(--ink-dim)}
+
+  footer{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);color:var(--ink-dim);font-size:.85rem}
+</style>
+
+<div class="page">
+
+  <header class="hero">
+    <p class="eyebrow">Playwright · Java · TestNG · Maven</p>
+    <h1>Hopon Food Automation</h1>
+    <p class="lede">Test automation across three real Hopon Food systems — a single run carries one order from a customer's phone through a restaurant's kitchen to a driver's app.</p>
+
+    <div class="pipeline">
+      <div class="stage customer">
+        <b>Customer web</b>
+        <span>dev-food.hoponbd.com</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stage restaurant">
+        <b>Restaurant admin</b>
+        <span>dev-foodadmin.hoponbd.com</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stage driver">
+        <b>Driver backend</b>
+        <span>dev-api.hoponbd.com</span>
+      </div>
+    </div>
+  </header>
+
+  <section id="prereqs">
+    <h2><span class="num">1</span>Prerequisites</h2>
+    <ul>
+      <li><strong>Java 17+</strong></li>
+      <li><strong>Maven 3.9+</strong></li>
+      <li>Playwright's Chromium browser — installed once below, not a separate manual download</li>
+      <li>Real credentials: a restaurant-admin login and a driver-app bearer token (dev-environment test accounts, not invented)</li>
+    </ul>
+    <p>No Docker, Node, or Python required for the tests themselves — <code>Docker/</code> exists only for an optional containerized run (§8).</p>
+  </section>
+
+  <section id="setup">
+    <h2><span class="num">2</span>Setup <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— one time</span></h2>
+
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>cd hopon-food-automation
+cp TestData.properties.example TestData.properties</pre>
+    </div>
+
+    <p>Edit <code>TestData.properties</code> (gitignored — never commit real values) and fill in:</p>
+
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre># customer web app
+base.url=https://dev-food.hoponbd.com
+
+# restaurant admin portal
+restaurant.admin.url=https://dev-foodadmin.hoponbd.com
+restaurant.admin.email=&lt;real email&gt;
+restaurant.admin.password=&lt;real password&gt;
+
+# driver-app API (bearer token from a real logged-in driver session)
+driver.api.base.url=http://dev-api.hoponbd.com
+driver.auth.token=&lt;real JWT&gt;
+driver.device.id=&lt;any string&gt;</pre>
+    </div>
+
+    <p>Then build once and install the Playwright browser binary:</p>
+
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn clean install
+mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"</pre>
+    </div>
+
+    <div class="callout">
+      <span class="label">Tip</span>
+      <p>Set <code>headless=false</code> in <code>TestData.properties</code> to watch the browser while a test runs — far easier to follow than reading a stack trace after the fact.</p>
+    </div>
+  </section>
+
+  <section id="run">
+    <h2><span class="num">3</span>Running a test</h2>
+    <p>Every suite here runs the same way — build once, then run through <code>init.TestRunner</code> naming the suite XML. This is the one command to remember; only the <code>-Dsuite=</code> value changes:</p>
+
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn "-Dsuite=test-suites/&lt;suite-file&gt;.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
+    </div>
+
+    <div class="callout warn">
+      <span class="label">PowerShell users</span>
+      <p>Quote every <code>-D</code> argument exactly as shown, all one line. An unquoted <code>=</code>, or a stray space around the colon in <code>exec:java</code>, makes Maven misread it as a lifecycle phase and fail with <code>LifecyclePhaseNotFoundException</code>.</p>
+    </div>
+
+    <h3>Available suites</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Suite file</th><th>Systems</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>orderLifecycle.xml</code></td>
+            <td><span class="tag customer">customer</span> <span class="tag restaurant">restaurant</span> <span class="tag driver">driver</span></td>
+            <td><strong>Full 3-system flow.</strong> Customer orders from QA Burger Express → restaurant accepts <em>and</em> marks it ready → driver runs Accepted → Arrived → PickedUp → Delivered, with photo proof.</td>
+          </tr>
+          <tr>
+            <td><code>orderLifecycleDriverInLoop.xml</code></td>
+            <td><span class="tag customer">customer</span> <span class="tag restaurant">restaurant</span> <span class="tag driver">driver</span></td>
+            <td>Same flow, realistic interleaving: driver accepts and arrives <strong>while the restaurant is still Preparing</strong>; restaurant marks ready after; driver completes pickup + delivery.</td>
+          </tr>
+          <tr>
+            <td><code>webRestaurant.xml</code></td>
+            <td><span class="tag restaurant">restaurant</span></td>
+            <td>Admin sidebar smoke test — logs in, walks all four tabs. Documents that Dashboard is still placeholder content.</td>
+          </tr>
+          <tr>
+            <td><code>smoke.xml</code></td>
+            <td><span class="tag customer">customer</span></td>
+            <td>Fast subset: one login test, one empty-cart check.</td>
+          </tr>
+          <tr>
+            <td><code>testng.xml</code></td>
+            <td><span class="tag customer">customer</span></td>
+            <td>Full customer-journey suite (authentication + ordering).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Example — run the full lifecycle and watch every step print live:</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
+    </div>
+
+    <p>Expected terminal output — one real order, created live against the dev backend every run:</p>
+
+    <div class="terminal">
+      <div class="bar"><i></i><i></i><i></i><span>mvn exec:java</span></div>
+      <pre><span class="tag-customer">[CUSTOMER]</span>   Logged in as 01123xxxxxx
+<span class="tag-customer">[CUSTOMER]</span>   Added to cart: Crispy Burger (Regular)
+<span class="tag-customer">[CUSTOMER]</span>   Order placed: #01B-xxx
+<span class="tag-restaurant">[RESTAURANT]</span> Order #01B-xxx accepted and marked Ready for Pickup (uuid=..., pin=....)
+<span class="tag-driver">[DRIVER]</span>     Order #01B-xxx -&gt; Accepted
+<span class="tag-driver">[DRIVER]</span>     Order #01B-xxx -&gt; Arrived at restaurant
+<span class="tag-driver">[DRIVER]</span>     Order #01B-xxx -&gt; PickedUp, heading to customer
+<span class="tag-driver">[DRIVER]</span>     Order #01B-xxx -&gt; Delivered (photo proof uploaded)
+<span class="tag-result">[RESULT]</span>     SUCCESS: full lifecycle completed - customer -&gt; restaurant -&gt; driver.
+
+<span class="dim">===============================================
+HoponOrderLifecycleSuite
+Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
+===============================================</span></pre>
+    </div>
+
+    <p>A <code>Retrying '...' (attempt N/2)</code> line is expected — see §6 — not a real failure as long as it ends in <code>Passes: 1</code>.</p>
+
+    <h3>Alternative entrypoints</h3>
+    <p>Whole customer suite via plain Maven (uses the surefire-configured <code>testng.xml</code>):</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn test</pre>
+    </div>
+    <p>Via helper scripts — same commands, with property-file checks and a headless override baked in:</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>./test-scripts/startup-local.sh                        # full suite
+./test-scripts/startup-local.sh test-suites/smoke.xml   # smoke subset
+./test-scripts/startup-jenkins.sh                       # CI mode, forces headless</pre>
+    </div>
+  </section>
+
+  <section id="status">
+    <h2><span class="num">4</span>What's real vs. still a stub</h2>
+    <p>Not everything here has been confirmed the same way. Know which is which before relying on it.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Status</th><th>Component</th><th>Confirmed how</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="tag confirmed">confirmed</span></td>
+            <td><code>pages/WebPages/customerPages/*</code></td>
+            <td>Real DOM probe — login, search → cart → checkout → place order</td>
+          </tr>
+          <tr>
+            <td><span class="tag confirmed">confirmed</span></td>
+            <td><code>pages/WebPages/adminPages/*</code></td>
+            <td>Real DOM probe — login, sidebar nav, Live Orders accept / ready-for-pickup, pickup PIN</td>
+          </tr>
+          <tr>
+            <td><span class="tag confirmed">confirmed</span></td>
+            <td><code>foodAPIs/driverModule/DriverAPI.java</code></td>
+            <td>Real device network capture — every status transition, the photo-proof upload, the delivery PIN requirement (see its class Javadoc)</td>
+          </tr>
+          <tr>
+            <td><span class="tag stub">stub</span></td>
+            <td><code>foodAPIs/authModule/AuthAPI.java</code><br><code>foodAPIs/orderModule/OrderAPI.java</code></td>
+            <td>No confirmed backend contract yet — throws <code>UnsupportedOperationException</code> (see <code>HANDOFF.md</code>)</td>
+          </tr>
+          <tr>
+            <td><span class="tag stub">stub</span></td>
+            <td><code>utils/GSheetUpdate.java</code></td>
+            <td>Intentionally unimplemented, kept only in case shared reporting becomes a real requirement</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="label">Known UI gap — not a test bug</span>
+      <p>The restaurant-admin Dashboard tab renders generic ride-hailing placeholder content, not real restaurant data. <code>WebRestaurantNavigationTest</code> documents this rather than treating it as a failure.</p>
+    </div>
+  </section>
+
+  <section id="reports">
+    <h2><span class="num">5</span>Reports &amp; artifacts</h2>
+    <ul>
+      <li>Surefire XML/HTML — <code>target/surefire-reports</code></li>
+      <li>Extent HTML report — <code>target/ExtentReport/index.html</code></li>
+      <li>Failure-only screenshots + Playwright traces — <code>target/test-artifacts</code></li>
+    </ul>
+    <p>Open a trace with:</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="show-trace target/test-artifacts/&lt;name&gt;_trace.zip"</pre>
+    </div>
+  </section>
+
+  <section id="flakiness">
+    <h2><span class="num">6</span>Known flakiness <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— and why it self-heals</span></h2>
+    <p><code>DataSource/riderlist.csv</code> only holds a handful of test phone numbers, reused across every run. The dev backend rate-limits repeated OTP requests per number, so a login occasionally times out on <code>Verify OTP</code>.</p>
+    <p>Every <code>@Test</code> in <code>EndToEnd</code> / <code>CustomerJourney</code> uses <code>utils.RetryAnalyzer</code> — two retries, a fresh random phone each attempt — so this self-heals without you re-running anything. A <code>Retrying '...'</code> line in the output is normal.</p>
+  </section>
+
+  <section id="codegen">
+    <h2><span class="num">7</span>Recording real locators <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— Playwright Codegen</span></h2>
+    <p>For any screen not yet covered:</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="codegen https://dev-food.hoponbd.com"</pre>
+    </div>
+    <p>Copy the generated locators into the matching page-object methods.</p>
+  </section>
+
+  <section id="docker">
+    <h2><span class="num">8</span>Running via Docker <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— optional</span></h2>
+    <p>No local Java, Maven, or browsers needed:</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>./test-scripts/startup-docker.sh
+# or directly:
+cd Docker && docker compose up --build</pre>
+    </div>
+  </section>
+
+  <section id="layout">
+    <h2><span class="num">9</span>Project layout</h2>
+    <div class="tree">
+      <pre>hopon-food-automation/
+├── DataSource/                        <span class="path"># customers.csv, restaurants.csv, riderlist.csv</span>
+├── DeviceProperties/                  <span class="path"># unused (desktop web only)</span>
+├── Docker/                            <span class="path"># Dockerfile + docker-compose.yml</span>
+├── src/main/java/
+│   ├── foodAPIs/
+│   │   ├── authModule/AuthAPI.java        <span class="stub">STUB</span>
+│   │   ├── orderModule/OrderAPI.java      <span class="stub">STUB</span>
+│   │   ├── driverModule/
+│   │   │   ├── DriverAPI.java             <span class="ok">CONFIRMED</span> full driver lifecycle + photo proof
+│   │   │   └── PlaceholderProofPhotos.java    <span class="path">tiny embedded images for auto "photo proof"</span>
+│   │   └── headerManager.java             <span class="path">shared header builders</span>
+│   ├── pages/WebPages/
+│   │   ├── customerPages/                 <span class="ok">CONFIRMED</span> <span class="path">customer web app POM</span>
+│   │   └── adminPages/                    <span class="ok">CONFIRMED</span> <span class="path">restaurant admin POM</span>
+│   │       ├── AdminBasePage.java
+│   │       ├── AdminLoginPage.java
+│   │       ├── WebRestaurantPage.java      <span class="path">sidebar nav</span>
+│   │       └── LiveOrdersPage.java         <span class="path">New/Preparing/Ready tabs, accept, PIN</span>
+│   └── utils/                             <span class="path">ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB)</span>
+├── src/test/java/
+│   ├── WebFunctionalTests/
+│   │   ├── AuthTests/                     <span class="path">customer login</span>
+│   │   ├── CustomerJourney/                <span class="path">customer search -&gt; order</span>
+│   │   ├── AdminPortal/                    <span class="path">restaurant-admin sidebar smoke test</span>
+│   │   └── EndToEnd/                       <span class="path">full 3-system lifecycle tests (§3)</span>
+│   ├── APITests/
+│   │   ├── AuthApiTest.java                <span class="path">disabled until AuthAPI is wired up</span>
+│   │   └── DriverCalling.java              <span class="path">standalone script: call DriverAPI directly</span>
+│   └── init/                               <span class="path">BaseRunner / AdminBaseRunner, TestRunner</span>
+├── test-scripts/                          <span class="path">startup-local.sh, startup-jenkins.sh, startup-docker.sh</span>
+├── test-suites/                           <span class="path">testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop)</span>
+├── TestData.properties(.example)          <span class="path">all base URLs, creds, driver token — gitignored</span>
+└── pom.xml</pre>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2><span class="num">10</span>Next steps</h2>
+    <ol>
+      <li>Get the backend API contract (Swagger/Postman) for <code>AuthAPI</code>/<code>OrderAPI</code>, or confirm each endpoint by capture the same way <code>DriverAPI</code> was built.</li>
+      <li>Verify <code>DriverAPI.markDelivered()</code>'s photo-proof requirement holds for restaurants/items other than QA Burger Express [AA] / Crispy Burger.</li>
+      <li>Add order-tracking assertions for the <em>restaurant</em> and <em>driver</em> sides mirroring what <code>OrderTrackingPage</code> already does for the customer.</li>
+      <li>Parameterize the lifecycle tests with a <code>@DataProvider</code> over multiple restaurants/menu items instead of the hardcoded QA Burger Express pairing.</li>
+    </ol>
+  </section>
+
+  <footer>Generated from <code>README.md</code> · Hopon Food Automation</footer>
+</div>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var pre = btn.parentElement.querySelector('pre');
+      var text = pre.innerText;
+      var done = function(){
+        var orig = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function(){ btn.textContent = orig; }, 1400);
+      };
+      try{
+        navigator.clipboard.writeText(text).then(done, done);
+      }catch(e){ done(); }
+    });
+  });
+</script>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="HoponOrderLifecycleDriverInLoopSuite">
+
+    <test name="OrderLifecycle">
+        <classes>
+            <class name="WebFunctionalTests.EndToEnd.OrderLifecycleTest"/>
+        </classes>
+    </test>
+
+    <test name="OrderLifecycleDriverInLoop">
+        <classes>
+            <class name="WebFunctionalTests.EndToEnd.OrderLifecycleDriverInLoopTest"/>
+        </classes>
+    </test>
+
+</suite>

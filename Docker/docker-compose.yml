@@ -1,0 +1,10 @@
+services:
+  hopon-food-tests:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    volumes:
+      - ../target:/workspace/target
+      - ../TestData.properties:/workspace/TestData.properties:ro
+    environment:
+      - HEADLESS=true

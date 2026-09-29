@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<!-- Sequential on purpose: BaseRunner shares one static Playwright/Browser across
+     every test class in the suite, and Playwright Java's sync API is not safe to
+     call from more than one thread (see BaseRunner javadoc). -->
+<suite name="HoponFoodSuite">
+
+    <test name="Authentication">
+        <classes>
+            <class name="WebFunctionalTests.AuthTests.LoginTest"/>
+        </classes>
+    </test>
+
+    <test name="OrderingJourney">
+        <classes>
+            <class name="WebFunctionalTests.CustomerJourney.SearchAndOrderTest"/>
+        </classes>
+    </test>
+
+</suite>

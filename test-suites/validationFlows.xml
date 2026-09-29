@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="HoponValidationFlowsSuite">
+
+    <test name="GpsOutsideServiceArea">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.GpsOutsideServiceAreaTest"/>
+        </classes>
+    </test>
+
+    <test name="RestaurantNotAcceptingOrders">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.RestaurantNotAcceptingOrdersTest"/>
+        </classes>
+    </test>
+
+    <test name="MenuItemNotAvailable">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.MenuItemNotAvailableTest"/>
+        </classes>
+    </test>
+
+    <test name="DriverCancelBeforeAccept">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.DriverCancelBeforeAcceptTest"/>
+        </classes>
+    </test>
+
+    <test name="DriverCancelAfterAccept">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.DriverCancelAfterAcceptTest"/>
+        </classes>
+    </test>
+
+    <test name="DriverCancelAfterArrived">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.DriverCancelAfterArrivedTest"/>
+        </classes>
+    </test>
+
+    <test name="RestaurantExtendPrepTime">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.RestaurantExtendPrepTimeTest"/>
+        </classes>
+    </test>
+
+    <test name="CancelOrderModalBroken">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.CancelOrderModalBrokenTest"/>
+        </classes>
+    </test>
+
+    <test name="NoValidationMessageOnCheckout">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.NoValidationMessageOnCheckoutTest"/>
+        </classes>
+    </test>
+
+    <test name="RestaurantCancelsOrder">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.RestaurantCancelsOrderTest"/>
+        </classes>
+    </test>
+
+    <test name="CartBadgeOnLocationChange">
+        <classes>
+            <class name="WebFunctionalTests.ValidationFlows.CartBadgeOnLocationChangeTest"/>
+        </classes>
+    </test>
+
+</suite>

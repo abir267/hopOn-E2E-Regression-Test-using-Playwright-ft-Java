@@ -1,0 +1,42 @@
+# Copy this file to TestData.properties (repo root) and fill in real values.
+# TestData.properties is gitignored — never commit real credentials/URLs there.
+
+# Base URL of the site under test
+base.url=https://dev-food.hoponbd.com
+
+# Base URL of the backend API (if different host from base.url)
+api.base.url=https://dev-food-api.hoponbd.com
+
+# Playwright execution
+headless=true
+browser=chromium
+slowmo.ms=0
+default.timeout.ms=30000
+
+# Test credentials
+# Tests rotate phone numbers via TestDataGenerator.randomRiderPhone() (reads
+# DataSource/riderlist.csv) instead of using test.user.phone, to avoid the
+# backend's per-number 24h rate limit on /login/request. otp 1122 is confirmed
+# fixed/working for every number in that CSV.
+test.user.phone=01700000000
+test.user.otp=1122
+
+# Delivery location used for every test (BaseRunner grants browser geolocation here).
+# A restaurant's availability is geo-fenced - pick coordinates confirmed in range
+# for whatever restaurant your tests order from.
+delivery.latitude=23.7925
+delivery.longitude=90.4078
+
+# Restaurant admin portal ("web-restaurant") — the URL redirects to a shared
+# admin auth host (dev-admin.hoponbd.com) then lands back here after login.
+restaurant.admin.url=https://dev-foodadmin.hoponbd.com
+restaurant.admin.email=CHANGE_ME
+restaurant.admin.password=CHANGE_ME
+
+# Driver-app order-status API (see foodAPIs/driverModule/DriverAPI.java)
+driver.api.base.url=http://dev-api.hoponbd.com
+driver.auth.token=CHANGE_ME
+driver.device.id=CHANGE_ME
+
+# Reporting
+extent.report.path=target/ExtentReport/index.html
