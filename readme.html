@@ -273,7 +273,7 @@
       <li>Playwright's Chromium browser — installed once below, not a separate manual download</li>
       <li>Real credentials: a restaurant-admin login and a driver-app bearer token (dev-environment test accounts, not invented)</li>
     </ul>
-    <p>No Docker, Node, or Python required for the tests themselves — <code>Docker/</code> exists only for an optional containerized run (§8).</p>
+    <p>No Docker, Node, or Python required for the tests themselves — <code>Docker/</code> exists only for an optional containerized run (§9).</p>
   </section>
 
   <section id="setup">
@@ -347,6 +347,11 @@ mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install
             <td>Same flow, realistic interleaving: driver accepts and arrives <strong>while the restaurant is still Preparing</strong>; restaurant marks ready after; driver completes pickup + delivery.</td>
           </tr>
           <tr>
+            <td><code>validationFlows.xml</code></td>
+            <td><span class="tag customer">customer</span> <span class="tag restaurant">restaurant</span> <span class="tag driver">driver</span></td>
+            <td><strong>Negative-path / bug-report suite</strong>, 10 tests — see §4 below for the full breakdown.</td>
+          </tr>
+          <tr>
             <td><code>webRestaurant.xml</code></td>
             <td><span class="tag restaurant">restaurant</span></td>
             <td>Admin sidebar smoke test — logs in, walks all four tabs. Documents that Dashboard is still placeholder content.</td>
@@ -391,7 +396,7 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
 ===============================================</span></pre>
     </div>
 
-    <p>A <code>Retrying '...' (attempt N/2)</code> line is expected — see §6 — not a real failure as long as it ends in <code>Passes: 1</code>.</p>
+    <p>A <code>Retrying '...' (attempt N/4)</code> line is expected — see §7 — not a real failure as long as it ends in <code>Passes: 1</code>.</p>
 
     <h3>Alternative entrypoints</h3>
     <p>Whole customer suite via plain Maven (uses the surefire-configured <code>testng.xml</code>):</p>
@@ -408,8 +413,81 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
     </div>
   </section>
 
+  <section id="validation">
+    <h2><span class="num">4</span>Validation flows <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— the bug-report suite</span></h2>
+    <p><code>test-suites/validationFlows.xml</code> (<code>WebFunctionalTests/ValidationFlows/</code>) is a separate suite of 10 negative-path tests, each built by reproducing a real reported issue live against the dev backend first, then locking the actual observed behavior into an assertion. Some assert <strong>correct</strong> behavior (a regression guard); a few assert the <strong>current confirmed bug</strong> on purpose — those are <em>supposed</em> to show as failures until the underlying product bug is fixed. Screenshot evidence for every one of them is saved to <code>target/bug-evidence/</code> on every run (see §6).</p>
+
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn "-Dsuite=test-suites/validationFlows.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Test</th><th>Checks</th><th>Expected result</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>GpsOutsideServiceAreaTest</code></td>
+            <td>Customer with GPS far outside Dhaka (Cox's Bazar) tries to order</td>
+            <td><span class="tag confirmed">pass</span> Correctly blocked with "Restaurant is unavailable"</td>
+          </tr>
+          <tr>
+            <td><code>RestaurantNotAcceptingOrdersTest</code></td>
+            <td>Restaurant toggled "Not Accepting Orders" <em>before</em> the item is added, then checkout attempted</td>
+            <td><span class="tag stub">fails on purpose</span> Confirmed bug: order still places, zero warning shown</td>
+          </tr>
+          <tr>
+            <td><code>MenuItemNotAvailableTest</code></td>
+            <td>Menu item toggled "Not Available" <em>before</em> being added, then checkout attempted</td>
+            <td><span class="tag stub">fails on purpose</span> Confirmed bug: order still places, zero warning shown</td>
+          </tr>
+          <tr>
+            <td><code>NoValidationMessageOnCheckoutTest</code></td>
+            <td>Same as above but item added <strong>first</strong>, restaurant goes offline <strong>after</strong> (exact reported repro order)</td>
+            <td><span class="tag stub">fails on purpose</span> Same confirmed bug, different ordering</td>
+          </tr>
+          <tr>
+            <td><code>RestaurantCancelsOrderTest</code></td>
+            <td>Restaurant (admin) cancels an order while the customer's tracking page is open and never reloaded</td>
+            <td><span class="tag confirmed">pass</span> Reaches the customer live (~8s, polling) with a clear banner; also documents a minor bug (stale "Cancel Order" button stays visible on an already-cancelled order)</td>
+          </tr>
+          <tr>
+            <td><code>CancelOrderModalBrokenTest</code></td>
+            <td>Customer clicks their own "Cancel Order" button on the tracking page</td>
+            <td><span class="tag stub">fails on purpose</span> Confirmed bug: nothing happens at all; root cause captured from the browser console (a missing Lucide "Cancel" icon crashes the confirmation toast)</td>
+          </tr>
+          <tr>
+            <td><code>CartBadgeOnLocationChangeTest</code></td>
+            <td>Customer changes delivery location (Gulshan → real Uttara coordinates) with an item already in cart</td>
+            <td><span class="tag confirmed">pass</span> Basket stays anchored/populated, clear "outside delivery zone" warning, checkout disables — did <strong>not</strong> reproduce the reported misplacement for this transition</td>
+          </tr>
+          <tr>
+            <td><code>RestaurantExtendPrepTimeTest</code></td>
+            <td>Restaurant clicks "Need More Time" (+20 min) on a Preparing order</td>
+            <td><span class="tag confirmed">pass</span> Customer's delivery-time window updates accordingly (no separate "delayed" banner, just the shifted ETA)</td>
+          </tr>
+          <tr>
+            <td><code>DriverCancelBeforeAcceptTest</code></td>
+            <td>Driver (not yet assigned) tries to cancel an order</td>
+            <td><span class="tag confirmed">pass</span> Correctly rejected, 400 "Invalid user"</td>
+          </tr>
+          <tr>
+            <td><code>DriverCancelAfterAcceptTest</code> / <code>DriverCancelAfterArrivedTest</code></td>
+            <td>Driver cancels after Accepted / after Arrived</td>
+            <td><span class="tag confirmed">pass</span> Both correctly allowed, driver unassigned, order returns to the pool</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="label">Designed to fail</span>
+      <p>Four of these tests (<code>RestaurantNotAcceptingOrdersTest</code>, <code>MenuItemNotAvailableTest</code>, <code>NoValidationMessageOnCheckoutTest</code>, <code>CancelOrderModalBrokenTest</code>) fail on purpose — that failure <em>is</em> the bug report. Don't "fix" them by loosening the assertion; fix the product bug, then update the assertion to match the corrected behavior.</p>
+    </div>
+  </section>
+
   <section id="status">
-    <h2><span class="num">4</span>What's real vs. still a stub</h2>
+    <h2><span class="num">5</span>What's real vs. still a stub</h2>
     <p>Not everything here has been confirmed the same way. Know which is which before relying on it.</p>
 
     <div class="tablewrap">
@@ -452,11 +530,12 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
   </section>
 
   <section id="reports">
-    <h2><span class="num">5</span>Reports &amp; artifacts</h2>
+    <h2><span class="num">6</span>Reports &amp; artifacts</h2>
     <ul>
       <li>Surefire XML/HTML — <code>target/surefire-reports</code></li>
       <li>Extent HTML report — <code>target/ExtentReport/index.html</code></li>
       <li>Failure-only screenshots + Playwright traces — <code>target/test-artifacts</code></li>
+      <li><strong>Bug-evidence screenshots</strong> (every <code>ValidationFlows</code> test, every run) — <code>target/bug-evidence/issueN_*.png</code>, overwritten fresh each run so they always reflect the current state</li>
     </ul>
     <p>Open a trace with:</p>
     <div class="codeblock">
@@ -466,13 +545,13 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
   </section>
 
   <section id="flakiness">
-    <h2><span class="num">6</span>Known flakiness <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— and why it self-heals</span></h2>
-    <p><code>DataSource/riderlist.csv</code> only holds a handful of test phone numbers, reused across every run. The dev backend rate-limits repeated OTP requests per number, so a login occasionally times out on <code>Verify OTP</code>.</p>
-    <p>Every <code>@Test</code> in <code>EndToEnd</code> / <code>CustomerJourney</code> uses <code>utils.RetryAnalyzer</code> — two retries, a fresh random phone each attempt — so this self-heals without you re-running anything. A <code>Retrying '...'</code> line in the output is normal.</p>
+    <h2><span class="num">7</span>Known flakiness <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— and why it self-heals</span></h2>
+    <p><code>DataSource/riderlist.csv</code> holds 350 test phone numbers, reused across every run. Under heavy same-session usage the dev backend's OTP step can occasionally time out (rate-limiting, or just a slow render of the OTP boxes) — CONFIRMED the login mechanics themselves are fine (a fresh manual run completes in well under half the default timeout), so this is transient, not a real bug.</p>
+    <p>Every <code>@Test</code> in <code>EndToEnd</code> / <code>CustomerJourney</code> / <code>ValidationFlows</code> uses <code>utils.RetryAnalyzer</code> — four retries, a fresh random phone each attempt — so this self-heals without you re-running anything. A <code>Retrying '...'</code> line in the output is normal.</p>
   </section>
 
   <section id="codegen">
-    <h2><span class="num">7</span>Recording real locators <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— Playwright Codegen</span></h2>
+    <h2><span class="num">8</span>Recording real locators <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— Playwright Codegen</span></h2>
     <p>For any screen not yet covered:</p>
     <div class="codeblock">
       <button class="copy" data-copy>Copy</button>
@@ -482,7 +561,7 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
   </section>
 
   <section id="docker">
-    <h2><span class="num">8</span>Running via Docker <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— optional</span></h2>
+    <h2><span class="num">9</span>Running via Docker <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— optional</span></h2>
     <p>No local Java, Maven, or browsers needed:</p>
     <div class="codeblock">
       <button class="copy" data-copy>Copy</button>
@@ -493,7 +572,7 @@ cd Docker && docker compose up --build</pre>
   </section>
 
   <section id="layout">
-    <h2><span class="num">9</span>Project layout</h2>
+    <h2><span class="num">10</span>Project layout</h2>
     <div class="tree">
       <pre>hopon-food-automation/
 ├── DataSource/                        <span class="path"># customers.csv, restaurants.csv, riderlist.csv</span>
@@ -513,32 +592,35 @@ cd Docker && docker compose up --build</pre>
 │   │       ├── AdminBasePage.java
 │   │       ├── AdminLoginPage.java
 │   │       ├── WebRestaurantPage.java      <span class="path">sidebar nav</span>
-│   │       └── LiveOrdersPage.java         <span class="path">New/Preparing/Ready tabs, accept, PIN</span>
+│   │       ├── LiveOrdersPage.java         <span class="path">New/Preparing/Ready tabs, accept, ready, extend prep, cancel, PIN</span>
+│   │       └── MenuManagementPage.java     <span class="path">item availability (Available/Not Available) toggle</span>
 │   └── utils/                             <span class="path">ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB)</span>
 ├── src/test/java/
 │   ├── WebFunctionalTests/
 │   │   ├── AuthTests/                     <span class="path">customer login</span>
 │   │   ├── CustomerJourney/                <span class="path">customer search -&gt; order</span>
 │   │   ├── AdminPortal/                    <span class="path">restaurant-admin sidebar smoke test</span>
-│   │   └── EndToEnd/                       <span class="path">full 3-system lifecycle tests (§3)</span>
+│   │   ├── EndToEnd/                       <span class="path">full 3-system lifecycle tests (§3)</span>
+│   │   └── ValidationFlows/                <span class="path">negative-path / bug-report suite, 10 tests (§4)</span>
 │   ├── APITests/
 │   │   ├── AuthApiTest.java                <span class="path">disabled until AuthAPI is wired up</span>
 │   │   └── DriverCalling.java              <span class="path">standalone script: call DriverAPI directly</span>
 │   └── init/                               <span class="path">BaseRunner / AdminBaseRunner, TestRunner</span>
 ├── test-scripts/                          <span class="path">startup-local.sh, startup-jenkins.sh, startup-docker.sh</span>
-├── test-suites/                           <span class="path">testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop)</span>
+├── test-suites/                           <span class="path">testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop), validationFlows</span>
 ├── TestData.properties(.example)          <span class="path">all base URLs, creds, driver token — gitignored</span>
 └── pom.xml</pre>
     </div>
   </section>
 
   <section id="next">
-    <h2><span class="num">10</span>Next steps</h2>
+    <h2><span class="num">11</span>Next steps</h2>
     <ol>
       <li>Get the backend API contract (Swagger/Postman) for <code>AuthAPI</code>/<code>OrderAPI</code>, or confirm each endpoint by capture the same way <code>DriverAPI</code> was built.</li>
       <li>Verify <code>DriverAPI.markDelivered()</code>'s photo-proof requirement holds for restaurants/items other than QA Burger Express [AA] / Crispy Burger.</li>
       <li>Add order-tracking assertions for the <em>restaurant</em> and <em>driver</em> sides mirroring what <code>OrderTrackingPage</code> already does for the customer.</li>
       <li>Parameterize the lifecycle tests with a <code>@DataProvider</code> over multiple restaurants/menu items instead of the hardcoded QA Burger Express pairing.</li>
+      <li>Report the 4 confirmed product bugs upstream (§4) — orders placing despite a closed restaurant/unavailable item with zero customer warning, and the customer's own "Cancel Order" button silently doing nothing due to a missing Lucide icon provider.</li>
     </ol>
   </section>
 

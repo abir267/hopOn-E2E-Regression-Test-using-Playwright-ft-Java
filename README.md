@@ -266,17 +266,3 @@ hopon-food-automation/
 └── pom.xml
 ```
 
-## 11. Next steps
-
-1. Get the backend API contract (Swagger/Postman) for `AuthAPI`/`OrderAPI`, or
-   confirm each endpoint by capture the same way `DriverAPI` was built.
-2. Verify `DriverAPI.markDelivered()`'s photo-proof requirement holds for
-   restaurants/items other than QA Burger Express [AA] / Crispy Burger.
-3. Add `OrderTrackingPage` assertions for the *restaurant* and *driver* sides
-   mirroring what `OrderTrackingPage` already does for the customer.
-4. Parameterize the lifecycle tests with a `@DataProvider` over multiple
-   restaurants/menu items instead of the hardcoded QA Burger Express pairing.
-5. Report the 4 confirmed product bugs upstream (§4) — orders placing despite
-   a closed restaurant/unavailable item with zero customer warning, and the
-   customer's own "Cancel Order" button silently doing nothing due to a
-   missing Lucide icon provider.
