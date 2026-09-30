@@ -178,6 +178,18 @@ same way. Know which is which before relying on it:
 - `foodAPIs/authModule/AuthAPI.java`, `foodAPIs/orderModule/OrderAPI.java` — no confirmed backend contract yet (see `HANDOFF.md`)
 - `utils/GSheetUpdate.java` — intentionally unimplemented, kept only in case a shared reporting sheet becomes a real requirement
 
+**`utils/MqttListener.java` — CONFIRMED (2026-09-30):** real-time order-status push
+listener for web (customer + restaurant-admin), decompiled straight from
+dev-food.hoponbd.com's own `mqtt-message.service.ts` via DevTools Sources (TS source
+maps were available). Broker `wss://dev-mqtt.hoponbd.com/mqtt`, MQTT v5 over WebSocket
+(HiveMQ client, not Paho — Paho's v3 module doesn't speak v5/WebSocket). Auth is fully
+session-derived: `MqttListener.connectFromWebSession(page)` reads the topic/username/
+token straight off the Playwright page's cookies (`_ssl_mt`/`_ssl_mu`/`_ssl_taf`) and
+localStorage (`_ssl_mcid`) after login — same as the real app, no static config to fill
+in. One gap: only the customer-side topic prefix (`rider/{userId}`) is confirmed;
+restaurant-admin's topic prefix hasn't been captured yet — grab its `_ssl_mt` cookie the
+same way before relying on it there.
+
 **Known UI gap (not a bug in the tests):** the restaurant-admin Dashboard tab
 renders generic ride-hailing placeholder content, not real restaurant data —
 `WebRestaurantNavigationTest` documents this rather than treating it as a
@@ -248,7 +260,7 @@ hopon-food-automation/
 │   │       ├── WebRestaurantPage.java     # sidebar nav
 │   │       ├── LiveOrdersPage.java        # New/Preparing/Ready tabs, accept, ready, extend prep, cancel, pickup PIN
 │   │       └── MenuManagementPage.java    # item availability (Available/Not Available) toggle
-│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB)
+│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB), MqttListener (CONFIRMED)
 ├── src/test/java/
 │   ├── WebFunctionalTests/
 │   │   ├── AuthTests/                     # customer login

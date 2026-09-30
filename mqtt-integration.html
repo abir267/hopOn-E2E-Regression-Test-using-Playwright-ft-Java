@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MQTT Integration Build Log</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#161a22; --panel2:#1c212b; --border:#2a3140;
+  --text:#e6e9ef; --muted:#8a93a6; --accent:#5b8cff;
+  --pass:#2ecc71; --fail:#ff5c5c; --step:#ffb020;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f5f6f8; --panel:#ffffff; --panel2:#f0f2f6; --border:#dde1e8;
+    --text:#1a1d24; --muted:#5c6474; --accent:#3760d8;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f5f6f8; --panel:#ffffff; --panel2:#f0f2f6; --border:#dde1e8;
+  --text:#1a1d24; --muted:#5c6474; --accent:#3760d8;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"IBM Plex Sans",-apple-system,Segoe UI,Roboto,sans-serif;
+  padding:24px 16px 64px; line-height:1.55;
+}
+.wrap{max-width:980px; margin:0 auto;}
+h1{font-size:1.6rem; margin-bottom:4px;}
+.subtitle{color:var(--muted); font-size:0.95rem; margin-bottom:28px;}
+.run-meta{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:32px;}
+.chip{background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:0.85rem; color:var(--muted);}
+.chip b{color:var(--text); font-weight:600;}
+h2{font-size:1.2rem; margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;}
+.phase-num{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff;
+  font-size:0.85rem; font-weight:700; flex-shrink:0;
+}
+.timeline{position:relative; padding-left:28px; margin-bottom:8px;}
+.timeline::before{content:""; position:absolute; left:9px; top:4px; bottom:4px; width:2px; background:var(--border);}
+.step{position:relative; margin-bottom:22px;}
+.step::before{
+  content:""; position:absolute; left:-28px; top:4px; width:12px; height:12px; border-radius:50%;
+  background:var(--panel); border:2px solid var(--accent);
+}
+.step.bug::before{border-color:var(--fail);}
+.step.pass::before{border-color:var(--pass); background:var(--pass);}
+.step-title{font-weight:700; margin-bottom:4px;}
+.step-body{color:var(--muted); font-size:0.92rem;}
+code, .mono{
+  font-family:"JetBrains Mono",monospace; font-size:0.85em;
+  background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px;
+}
+pre{
+  background:var(--panel2); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; overflow-x:auto; font-size:0.8rem; font-family:"JetBrains Mono",monospace;
+  color:var(--text); margin:10px 0;
+}
+pre .k{color:var(--accent);}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 20px; margin-bottom:16px;}
+.card.bug{border-left:4px solid var(--fail);}
+.card.pass{border-left:4px solid var(--pass);}
+.card-title{font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+.badge{display:inline-block; padding:2px 10px; border-radius:999px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.03em;}
+.badge.bug{background:rgba(255,92,92,0.15); color:var(--fail);}
+.badge.pass{background:rgba(46,204,113,0.15); color:var(--pass);}
+table{width:100%; border-collapse:collapse; font-size:0.86rem; margin:10px 0;}
+th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
+th{color:var(--muted); font-weight:600; font-size:0.75rem; text-transform:uppercase;}
+.log{
+  background:#000; color:#7ee787; border-radius:8px; padding:14px 16px; font-family:"JetBrains Mono",monospace;
+  font-size:0.78rem; overflow-x:auto; margin:10px 0; white-space:pre-wrap; line-height:1.5;
+}
+:root:not([data-theme="dark"]) .log{background:#0d1117;}
+.final-banner{
+  background:linear-gradient(135deg, rgba(46,204,113,0.12), rgba(46,204,113,0.03));
+  border:1px solid rgba(46,204,113,0.35); border-radius:12px; padding:24px; text-align:center; margin:32px 0;
+}
+.final-banner .big{font-size:1.4rem; font-weight:800; color:var(--pass); margin-bottom:6px;}
+footer{color:var(--muted); font-size:0.8rem; margin-top:48px; text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MQTT Integration — Build Log</h1>
+  <div class="subtitle">How <code>utils/MqttListener.java</code> went from "no MQTT in this project" to a live-confirmed broker connection — captured straight from the browser, no guessed config.</div>
+
+  <div class="run-meta">
+    <div class="chip">Date: <b>2026-09-30</b></div>
+    <div class="chip">Target: <b>dev-food.hoponbd.com</b></div>
+    <div class="chip">Broker: <b>wss://dev-mqtt.hoponbd.com/mqtt</b></div>
+    <div class="chip">Client lib: <b>HiveMQ MQTT Client 1.3.3 (MQTT v5)</b></div>
+  </div>
+
+  <h2><span class="phase-num">1</span> Discovery — reading the app's own source</h2>
+  <div class="timeline">
+    <div class="step">
+      <div class="step-title">DevTools → Sources → Ctrl+Shift+F, searched "mqtt"</div>
+      <div class="step-body">The app ships real TypeScript source maps, not just minified bundles. Global search across all loaded files surfaced <code>MqttMessageService</code>, its import path, and every file referencing MQTT constants — 287 matches across 13 files.</div>
+    </div>
+    <div class="step">
+      <div class="step-title">Found <code>environment.development.ts</code></div>
+      <div class="step-body">Contains the literal broker URL:</div>
+      <pre>mqttUrl: <span class="k">'wss://dev-mqtt.hoponbd.com/mqtt'</span>,</pre>
+    </div>
+    <div class="step">
+      <div class="step-title">Found <code>mqtt-message.service.ts</code> — the real connect logic</div>
+      <div class="step-body">Opened the actual service file via quick-open. It showed the real <code>mqtt.connect()</code> call: MQTT v5 (<code>protocolVersion: 5</code>), clean session, 30s keepalive, and — critically — that <b>topic/username/token are not static config</b>. They're read from cookies right before connecting:</div>
+      <pre>const token = this.cookies.get(ACCESS_TOKEN);
+const mqttTopic = this.cookies.get(MQTT_TOPIC);
+const username = this.cookies.get(MQTT_USERNAME);
+...
+this.client = mqtt.connect(environment.mqttUrl, {
+  clientId, username,
+  password: token, <span class="k">// the JWT access token is the MQTT password</span>
+  protocolVersion: <span class="k">5</span>,
+  clean: <span class="k">true</span>, keepalive: <span class="k">30</span>,
+});</pre>
+    </div>
+    <div class="step">
+      <div class="step-title">Traced the constant names back to their storage keys</div>
+      <div class="step-body">Another search hit (<code>chunk-FXUMZ6LF.js</code>) revealed what <code>MQTT_TOPIC</code>/<code>MQTT_USERNAME</code>/<code>MQTT_CLIENT_ID</code> actually resolve to as storage keys:</div>
+      <pre>var MQTT_TOPIC = <span class="k">"_ssl_mt"</span>;
+var MQTT_USERNAME = <span class="k">"_ssl_mu"</span>;
+var MQTT_CLIENT_ID = <span class="k">"_ssl_mcid"</span>;</pre>
+    </div>
+  </div>
+
+  <h2><span class="phase-num">2</span> Capture — pulling the real runtime values</h2>
+  <div class="timeline">
+    <div class="step">
+      <div class="step-title">DevTools → Application → Cookies → dev-food.hoponbd.com</div>
+      <div class="step-body">Source code only gave key <i>names</i> — the actual values only exist once logged in. Read them straight off a live session:</div>
+      <table>
+        <thead><tr><th>Key</th><th>Storage</th><th>Real captured value (example)</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>_ssl_mt</code></td><td>Cookie</td><td><code>rider%2F98fff7f2-6059-...</code></td><td>Subscribe topic (URL-encoded), decodes to <code>rider/{userId}</code></td></tr>
+          <tr><td><code>_ssl_mu</code></td><td>Cookie</td><td><code>98fff7f2-6059-4017-...</code></td><td>MQTT username = the user's id</td></tr>
+          <tr><td><code>_ssl_taf</code></td><td>Cookie</td><td><code>eyJhbGciOiJIUzUxMiJ9...</code></td><td>JWT access token, identified by shape (<code>eyJ...</code>) — used as the MQTT password</td></tr>
+          <tr><td><code>_ssl_mcid</code></td><td>localStorage</td><td><code>691eb1f663854c6aa0fd...</code></td><td>Stable per-device MQTT clientId</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2><span class="phase-num">3</span> Build — wiring it into the Java project</h2>
+  <div class="card">
+    <div class="card-title">utils/MqttListener.java</div>
+    <div class="step-body">
+      Switched from the originally-planned Paho MQTT v3 client (already used by the sibling mobile Appium project) to <b>HiveMQ's MQTT client</b>, because the real web app speaks <b>MQTT v5 over WebSocket</b> — Paho's <code>mqttv3</code> module supports neither.
+      <br><br>
+      Added <code>MqttListener.connectFromWebSession(Page page)</code>: reads <code>_ssl_mt</code>/<code>_ssl_mu</code>/<code>_ssl_taf</code> straight off the Playwright <code>BrowserContext</code>'s cookies and <code>_ssl_mcid</code> from <code>localStorage</code> via <code>page.evaluate()</code>, then connects and subscribes — mirroring exactly what the real Angular service does, with zero hardcoded/guessed session values.
+    </div>
+  </div>
+
+  <h2><span class="phase-num">4</span> Live test — two real bugs found and fixed</h2>
+
+  <div class="card bug">
+    <div class="card-title"><span class="badge bug">Bug 1</span> Connected to localhost instead of the real broker</div>
+    <div class="log">Caused by: com.hivemq.client.mqtt.exceptions.ConnectionFailedException:
+io.netty.channel.AbstractChannel$AnnotatedConnectException:
+Connection refused: no further information: localhost/127.0.0.1:1883</div>
+    <div class="step-body">
+      Root cause: a <code>.transportConfig(MqttClientTransportConfig.builder()...)</code> call, added to give the connect a timeout, built a <b>brand-new</b> transport config object — which silently discarded the <code>.serverHost()</code>/<code>.serverPort()</code>/<code>.webSocketConfig()</code>/<code>.sslWithDefaultConfig()</code> set earlier in the same fluent chain, resetting everything to the library's hardcoded default (<code>localhost:1883</code>, no TLS, no WebSocket). Compiled fine — only failed at runtime.
+      <br><br>
+      <b>Fix:</b> removed the separate <code>.transportConfig(...)</code> call. Kept the timeout goal by wrapping the async connect call itself in <code>.get(15, TimeUnit.SECONDS)</code> instead.
+    </div>
+  </div>
+
+  <div class="card bug">
+    <div class="card-title"><span class="badge bug">Bug 2</span> Missing WebSocket codec — NoClassDefFoundError</div>
+    <div class="log">java.lang.NoClassDefFoundError: io/netty/handler/codec/http/websocketx/WebSocketVersion
+    at com.hivemq.client.internal.mqtt.handler.websocket.MqttWebSocketInitializer.initChannel</div>
+    <div class="step-body">
+      This one got further — TLS handshake to the <i>real</i> broker succeeded — then failed initializing the WebSocket layer. <code>hivemq-mqtt-client</code> marks WebSocket support as an <b>optional</b> transitive dependency; <code>io.netty:netty-codec-http</code> (which owns <code>WebSocketVersion</code>) isn't pulled in on its own. Again: compiled clean, broke only at connect time.
+      <br><br>
+      <b>Fix:</b> added <code>io.netty:netty-codec-http</code> explicitly to <code>pom.xml</code>, pinned to <code>4.1.99.Final</code> to match the netty version <code>hivemq-mqtt-client</code> already pulls in for its other modules (confirmed via <code>mvn dependency:tree</code>).
+    </div>
+  </div>
+
+  <div class="card pass">
+    <div class="card-title"><span class="badge pass">Confirmed</span> End-to-end live run</div>
+    <div class="log">Logged in as 01123477363 (attempt 2)
+COOKIE _ssl_taf = eyJhbGciOiJIUzUxMiJ9...
+COOKIE _ssl_mt = rider%2F4e79b195-da56-467f-bfb2-9e1e0402751a
+COOKIE _ssl_mu = 4e79b195-da56-467f-bfb2-9e1e0402751a
+localStorage _ssl_mcid = db8ea52c53bf4c1f96a3ba51bb291a2b
+2026-09-30 16:03:11 [MQTT] Connected: db8ea52c53bf4c1f96a3ba51bb291a2b
+2026-09-30 16:03:11 [MQTT] Subscribed to: rider/4e79b195-da56-467f-bfb2-9e1e0402751a
+MQTT connect+subscribe call returned without throwing.
+2026-09-30 16:03:14 [MQTT] Disconnected
+PROBE PASSED</div>
+    <div class="step-body">Real login → real cookie/localStorage extraction → real WSS connect to <code>dev-mqtt.hoponbd.com</code> → real QoS-2 subscribe to a real per-user topic → clean disconnect. Not a mock, not a guessed config — an actual broker round-trip.</div>
+  </div>
+
+  <div class="final-banner">
+    <div class="big">MqttListener: CONFIRMED, not a stub</div>
+    <div style="color:var(--muted); font-size:0.9rem;">Ready to use in real tests — e.g. replacing polling-based checks like <code>RestaurantCancelsOrderTest</code>'s 10×1s loop with a real push-based assertion via <code>waitForOrderStatus(orderNo, timeoutSeconds)</code>.</div>
+  </div>
+
+  <h2><span class="phase-num">5</span> What's still open</h2>
+  <div class="card">
+    <div class="step-body">
+      Only the <b>customer-side</b> topic prefix (<code>rider/{userId}</code>) is confirmed. Restaurant-admin's topic prefix hasn't been captured — same DevTools → Application → Cookies steps, done on a logged-in <code>dev-foodadmin.hoponbd.com</code> session, would confirm it.
+    </div>
+  </div>
+
+  <footer>hopon-food-automation — utils/MqttListener.java, pom.xml. Captured and verified against dev-food.hoponbd.com, 2026-09-30.</footer>
+</div>
+</body>
+</html>

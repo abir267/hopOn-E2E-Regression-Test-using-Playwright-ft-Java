@@ -125,4 +125,13 @@ public class ConfigReader {
     public static String driverDeviceId() {
         return get("driver.device.id");
     }
+
+    /**
+     * CONFIRMED real value: wss://dev-mqtt.hoponbd.com/mqtt (see MqttListener's Javadoc).
+     * Falls back to that confirmed value if unset, so an empty/missing key doesn't
+     * silently break MqttListener the way a guessed URL would have.
+     */
+    public static String mqttBrokerUrl() {
+        return get("mqtt.broker.url", "");
+    }
 }

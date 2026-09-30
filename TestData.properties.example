@@ -38,5 +38,12 @@ driver.api.base.url=http://dev-api.hoponbd.com
 driver.auth.token=CHANGE_ME
 driver.device.id=CHANGE_ME
 
+# Real-time order-status MQTT listener (utils/MqttListener.java) — CONFIRMED
+# (2026-09-30, decompiled from dev-food.hoponbd.com's mqtt-message.service.ts).
+# Broker is MQTT v5 over WebSocket. Topic/username/token are per-session, read
+# directly off the Playwright page's cookies by MqttListener.connectFromWebSession()
+# after login — nothing else to configure here.
+mqtt.broker.url=wss://dev-mqtt.hoponbd.com/mqtt
+
 # Reporting
 extent.report.path=target/ExtentReport/index.html
