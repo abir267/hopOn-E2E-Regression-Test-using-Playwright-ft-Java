@@ -132,20 +132,38 @@ override baked in):
 
 ### Reading the terminal output
 
-Every line is prefixed with the real wall-clock time, aorder · status · "title"icon and (when the
+Every line is prefixed with the real wall-clock time, a status icon and (when the
 terminal supports it) colour. `utils/ConsoleLogListener` does this for every run
 (`mvn test`, `-Dtest=...`, `init.TestRunner`) — no per-test code.
 
 ```
-[08:32:27 AM] > [TEST] START  OrderLifecycleTest.customerToRestaurantToDriverAcceptance
-[08:32:45 AM] + [CUSTOMER] Logged in as 01123503576
-[08:32:55 AM] + [CUSTOMER] Order placed: #025-15C
-[08:33:23 AM] * [MQTT] <- [CUSTOMER] 025-15C | Preparing | "Preparing your food"
-[08:33:24 AM] * [MQTT] <- [RESTAURANT] 025-15C | Preparing | "Preparing Order" / "Customer is waiting!"
-[08:33:30 AM] + [DRIVER] Order #025-15C -> Delivered (photo proof uploaded)
-[08:33:31 AM] + [RESULT] SUCCESS: full lifecycle completed ...
-[08:33:31 AM] + [TEST] PASSED OrderLifecycleTest.customerToRestaurantToDriverAcceptance (64.0s)
+[03:23:11 PM] > [TEST] START  OrderLifecycleTest.customerToRestaurantToDriverAcceptance
+[03:23:27 PM] ! [LOGIN] #phone did not render within 10000ms (attempt 1/3), reloading and retrying...
+[03:23:35 PM] + [CUSTOMER] Logged in as 01123773500
+[03:23:46 PM] + [CUSTOMER] Added to cart: Crispy Burger (Regular)
+[03:23:49 PM] + [CUSTOMER] Order placed: #025-D78
+[03:24:22 PM] * [MQTT] <- [CUSTOMER] 025-D78 | Preparing | "Preparing your food"
+[03:24:22 PM] + [RESTAURANT] Order #025-D78 accepted and marked Ready for Pickup (uuid=04763188-..., pin=0018)
+[03:24:22 PM] + [DRIVER] Order #025-D78 -> Accepted
+[03:24:23 PM] + [DRIVER] Order #025-D78 -> Arrived at restaurant
+[03:24:23 PM] * [MQTT] <- [CUSTOMER] 025-D78 | ReadyForPickup | "It's fresh and ready!"
+[03:24:23 PM] + [DRIVER] Order #025-D78 -> PickedUp, heading to customer
+[03:24:23 PM] * [MQTT] <- [RESTAURANT] 025-D78 | ReadyForPickup | "Ready" / "Waiting for driver to pickup"
+[03:24:24 PM] * [MQTT] <- [CUSTOMER] 025-D78 | Delivering | "Driver On The Way"
+[03:24:24 PM] * [MQTT] <- [RESTAURANT] 025-D78 | Delivering | "Driver On The Way" / "Order is moving and should arrive soon"
+[03:24:50 PM] + [DRIVER] Order #025-D78 -> Delivered (photo proof uploaded)
+[03:24:50 PM] * [MQTT] <- [CUSTOMER] 025-D78 | Completed | "Order Completed"
+[03:24:50 PM] * [MQTT] <- [RESTAURANT] 025-D78 | Completed | "Food Delivered" / "Food delivered successfully!"
+[03:24:50 PM] + [RESULT] SUCCESS: full lifecycle completed - customer -> restaurant -> driver (Accepted -> Arrived -> PickedUp -> Delivered).
+[03:24:50 PM] + [TEST] PASSED OrderLifecycleTest.customerToRestaurantToDriverAcceptance (99.0s)
 ```
+
+In a colour terminal the `CUSTOMER` / `RESTAURANT` / `DRIVER` tag in each `[MQTT]` line gets a
+coloured background (blue / yellow / magenta). Lines are real pushes the web apps received, so
+the same status can legitimately appear more than once (the backend re-sends some statuses),
+and an intermediate status can be absent if the page was reconnecting when it was sent. Before
+closing the browser the end-to-end tests wait up to 10s for the final `Completed` push on both
+the customer and restaurant pages, so the last two `[MQTT]` lines are always captured.
 
 | Prefix | Meaning |
 |---|---|
@@ -153,7 +171,7 @@ terminal supports it) colour. `utils/ConsoleLogListener` does this for every run
 | `[CUSTOMER]` `[RESTAURANT]` `[DRIVER]` `[RESULT]` | test steps (green) |
 | `[LOGIN]`, `Retrying ...` | slow login / retry notice (yellow) |
 | `[FAILED]` | failure with the exception (red) |
-| `[MQTT] <- [ROLE] order - status - "title"` | real MQTT push the customer/restaurant web app received (magenta); restaurant lines also show the message |
+| `[MQTT] <- [ROLE] order, status, "title"` | real MQTT push the customer/restaurant web app received (magenta); restaurant lines also show the message |
 
 **MQTT lines** come from `utils/MqttConsoleCapture`, hooked into the page-object base
 classes: it decodes the PUBLISH packets on each page's MQTT WebSocket, so what prints

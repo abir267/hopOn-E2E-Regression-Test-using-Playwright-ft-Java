@@ -105,6 +105,7 @@ public class OrderLifecycleDriverInLoopTest {
             Assert.assertTrue(DriverAPI.isDelivered(delivered), "Expected order to be confirmed Delivered: " + delivered);
             System.out.println("[DRIVER] Order #" + orderNo + " -> Delivered (photo proof uploaded)");
 
+            utils.MqttConsoleCapture.awaitStatus(orderNo, "Completed", 10);
             driverAPI.close();
             browser.close();
             System.out.println("[RESULT] SUCCESS: driver accepted mid-prep, restaurant readied after, driver completed delivery.");

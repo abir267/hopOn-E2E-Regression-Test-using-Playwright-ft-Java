@@ -61,6 +61,7 @@ public class OrderLifecycleTest {
 
                 runDriverFlow(playwright, orderNo, acceptance.orderUuid(), acceptance.pin());
 
+                utils.MqttConsoleCapture.awaitStatus(orderNo, "Completed", 10);
                 browser.close();
                 System.out.println("[RESULT] SUCCESS: full lifecycle completed - customer -> restaurant -> driver (Accepted -> Arrived -> PickedUp -> Delivered).");
             } catch (Throwable t) {
