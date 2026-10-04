@@ -130,6 +130,46 @@ override baked in):
 ./test-scripts/startup-jenkins.sh                       # CI mode, forces headless
 ```
 
+### Reading the terminal output
+
+Every line is prefixed with the real wall-clock time, aorder · status · "title"icon and (when the
+terminal supports it) colour. `utils/ConsoleLogListener` does this for every run
+(`mvn test`, `-Dtest=...`, `init.TestRunner`) — no per-test code.
+
+```
+[08:32:27 AM] > [TEST] START  OrderLifecycleTest.customerToRestaurantToDriverAcceptance
+[08:32:45 AM] + [CUSTOMER] Logged in as 01123503576
+[08:32:55 AM] + [CUSTOMER] Order placed: #025-15C
+[08:33:23 AM] * [MQTT] <- [CUSTOMER] 025-15C | Preparing | "Preparing your food"
+[08:33:24 AM] * [MQTT] <- [RESTAURANT] 025-15C | Preparing | "Preparing Order" / "Customer is waiting!"
+[08:33:30 AM] + [DRIVER] Order #025-15C -> Delivered (photo proof uploaded)
+[08:33:31 AM] + [RESULT] SUCCESS: full lifecycle completed ...
+[08:33:31 AM] + [TEST] PASSED OrderLifecycleTest.customerToRestaurantToDriverAcceptance (64.0s)
+```
+
+| Prefix | Meaning |
+|---|---|
+| `[TEST] START / PASSED / FAILED / SKIPPED` | running test name (`Class.method`) and duration |
+| `[CUSTOMER]` `[RESTAURANT]` `[DRIVER]` `[RESULT]` | test steps (green) |
+| `[LOGIN]`, `Retrying ...` | slow login / retry notice (yellow) |
+| `[FAILED]` | failure with the exception (red) |
+| `[MQTT] <- [ROLE] order - status - "title"` | real MQTT push the customer/restaurant web app received (magenta); restaurant lines also show the message |
+
+**MQTT lines** come from `utils/MqttConsoleCapture`, hooked into the page-object base
+classes: it decodes the PUBLISH packets on each page's MQTT WebSocket, so what prints
+is the payload the app really received. The driver is API-only, so it has no MQTT lines.
+In the end-to-end tests the customer and restaurant pages stay open until the run ends so
+they can receive pushes.
+
+Symbols fall back to ASCII (`>` `+` `x` `!` `*`, `<-`, `|`) when the console is not UTF-8;
+with UTF-8 (`chcp 65001`) you get `▶ ✔ ✖ ⚠ ›`, `←`, `·`. Options (add to any command):
+
+| Flag | Effect |
+|---|---|
+| `-Dmqtt.full=true` | also print the full pretty JSON under each MQTT line |
+| `-Dno.color=true` | plain text, no ANSI colour (timestamps stay) |
+| `-Dno.unicode=true` | force ASCII symbols |
+
 ## 4. Validation flows — the bug-report suite
 
 `test-suites/validationFlows.xml` (`WebFunctionalTests/ValidationFlows/`) is a
@@ -260,7 +300,7 @@ hopon-food-automation/
 │   │       ├── RestaurantPortalPage.java     # sidebar nav
 │   │       ├── LiveOrdersPage.java        # New/Preparing/Ready tabs, accept, ready, extend prep, cancel, pickup PIN
 │   │       └── MenuManagementPage.java    # item availability (Available/Not Available) toggle
-│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB), MqttListener (CONFIRMED)
+│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, ConsoleLogListener, MqttConsoleCapture, GSheetUpdate (STUB), MqttListener (CONFIRMED)
 ├── src/test/java/
 │   ├── WebFunctionalTests/
 │   │   ├── AuthTests/                     # customer login

@@ -411,6 +411,26 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
 ./test-scripts/startup-local.sh test-suites/smoke.xml   # smoke subset
 ./test-scripts/startup-jenkins.sh                       # CI mode, forces headless</pre>
     </div>
+    <h3>Reading the terminal output</h3>
+    <p>Every line gets the real wall-clock time, aorder · status · "title"icon and (if the terminal supports it) colour — done by <code>utils/ConsoleLogListener</code> for every run, no per-test code.</p>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>[08:32:27 AM] &gt; [TEST] START  OrderLifecycleTest.customerToRestaurantToDriverAcceptance
+[08:32:45 AM] + [CUSTOMER] Logged in as 01123503576
+[08:32:55 AM] + [CUSTOMER] Order placed: #025-15C
+[08:33:23 AM] * [MQTT] &lt;- [CUSTOMER] 025-15C | Preparing | "Preparing your food"
+[08:33:24 AM] * [MQTT] &lt;- [RESTAURANT] 025-15C | Preparing | "Preparing Order" / "Customer is waiting!"
+[08:33:30 AM] + [DRIVER] Order #025-15C -&gt; Delivered (photo proof uploaded)
+[08:33:31 AM] + [TEST] PASSED OrderLifecycleTest.customerToRestaurantToDriverAcceptance (64.0s)</pre>
+    </div>
+    <ul>
+      <li><code>[TEST] START / PASSED / FAILED / SKIPPED</code> — running test name and duration</li>
+      <li><code>[CUSTOMER]</code> <code>[RESTAURANT]</code> <code>[DRIVER]</code> <code>[RESULT]</code> — test steps (green); <code>[LOGIN]</code> / <code>Retrying</code> — yellow; <code>[FAILED]</code> — red</li>
+      <li><code>[MQTT] &lt;- [ROLE] order · status · "title"| status | "title"</code> — real MQTT push the customer/restaurant web app received (magenta); restaurant lines also show the message. Captured by <code>utils/MqttConsoleCapture</code> from each page's MQTT WebSocket. The driver is API-only, so it has no MQTT lines.</li>
+      <li>Non-UTF-8 consoles get ASCII symbols (<code>&gt; + x ! *</code>, <code>&lt;-</code>, <code>|</code>); with UTF-8 (<code>chcp 65001</code>) you get <code>▶ ✔ ✖ ⚠ ›</code>, <code>←</code>, <code>·</code>.</li>
+      <li>Flags: <code>-Dmqtt.full=true</code> (also print full pretty JSON), <code>-Dno.color=true</code> (plain text), <code>-Dno.unicode=true</code> (force ASCII).</li>
+    </ul>
+
   </section>
 
   <section id="validation">
