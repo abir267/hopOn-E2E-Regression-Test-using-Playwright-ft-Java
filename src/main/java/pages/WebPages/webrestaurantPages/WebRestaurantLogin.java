@@ -1,4 +1,4 @@
-package pages.WebPages.adminPages;
+package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
@@ -15,34 +15,34 @@ import utils.ConfigReader;
  *   - submit button is a <button type="submit"> with visible text "Sign In"
  * On success the app redirects to /dashboard on the food-admin host.
  */
-public class AdminLoginPage extends AdminBasePage {
+public class WebRestaurantLogin extends AdminBasePage {
 
     private static final String EMAIL_INPUT = "input[type=email]";
     private static final String PASSWORD_INPUT = "#password";
 
-    public AdminLoginPage(Page page) {
+    public WebRestaurantLogin(Page page) {
         super(page);
         page.navigate(ConfigReader.restaurantAdminUrl());
     }
 
-    public AdminLoginPage enterEmail(String email) {
+    public WebRestaurantLogin enterEmail(String email) {
         type(EMAIL_INPUT, email);
         return this;
     }
 
-    public AdminLoginPage enterPassword(String password) {
+    public WebRestaurantLogin enterPassword(String password) {
         type(PASSWORD_INPUT, password);
         return this;
     }
 
-    public WebRestaurantPage submit() {
+    public RestaurantPortalPage submit() {
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Sign In")).click();
         waitVisible("aside");
-        return new WebRestaurantPage(page);
+        return new RestaurantPortalPage(page);
     }
 
     /** Convenience method chaining the full flow for the common "happy path" case. */
-    public WebRestaurantPage loginWithEmailAndPassword(String email, String password) {
+    public RestaurantPortalPage loginWithEmailAndPassword(String email, String password) {
         enterEmail(email);
         enterPassword(password);
         return submit();

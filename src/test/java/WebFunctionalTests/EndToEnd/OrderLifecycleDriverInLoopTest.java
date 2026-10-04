@@ -10,9 +10,9 @@ import com.microsoft.playwright.options.Geolocation;
 import foodAPIs.driverModule.DriverAPI;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.WebPages.adminPages.AdminLoginPage;
-import pages.WebPages.adminPages.LiveOrdersPage;
-import pages.WebPages.adminPages.WebRestaurantPage;
+import pages.WebPages.webrestaurantPages.WebRestaurantLogin;
+import pages.WebPages.webrestaurantPages.LiveOrdersPage;
+import pages.WebPages.webrestaurantPages.RestaurantPortalPage;
 import pages.WebPages.customerPages.CartPage;
 import pages.WebPages.customerPages.CheckoutPage;
 import pages.WebPages.customerPages.HomePage;
@@ -53,6 +53,7 @@ public class OrderLifecycleDriverInLoopTest {
                     .setHeadless(ConfigReader.headless())
                     .setSlowMo(ConfigReader.slowMo()));
 
+            try {
             String orderNo = placeCustomerOrder(browser);
             System.out.println("[CUSTOMER] Order placed: #" + orderNo);
 
@@ -60,7 +61,7 @@ public class OrderLifecycleDriverInLoopTest {
                     .setBaseURL(ConfigReader.restaurantAdminUrl())
                     .setViewportSize(1440, 900));
             Page adminPage = adminContext.newPage();
-            WebRestaurantPage restaurant = new AdminLoginPage(adminPage)
+            RestaurantPortalPage restaurant = new WebRestaurantLogin(adminPage)
                     .loginWithEmailAndPassword(ConfigReader.restaurantAdminEmail(), ConfigReader.restaurantAdminPassword());
             restaurant.openLiveOrders();
             LiveOrdersPage liveOrders = new LiveOrdersPage(adminPage);
@@ -107,6 +108,11 @@ public class OrderLifecycleDriverInLoopTest {
             driverAPI.close();
             browser.close();
             System.out.println("[RESULT] SUCCESS: driver accepted mid-prep, restaurant readied after, driver completed delivery.");
+            } catch (Throwable t) {
+                System.out.println("[FAILED] driverAcceptsWhileStillPreparing: " + t.getClass().getSimpleName()
+                        + " - " + t.getMessage());
+                throw t;
+            }
         }
     }
 
@@ -144,7 +150,6 @@ public class OrderLifecycleDriverInLoopTest {
         String orderNo = checkoutPage.orderId();
         Assert.assertNotNull(orderNo, "Expected a non-null order number on confirmation");
 
-        context.close();
         return orderNo;
     }
 

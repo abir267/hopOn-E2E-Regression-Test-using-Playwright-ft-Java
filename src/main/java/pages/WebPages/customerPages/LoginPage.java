@@ -1,7 +1,10 @@
 package pages.WebPages.customerPages;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.WaitForSelectorState;
 
 /**
  * Phone + OTP login flow — CONFIRMED against the live site (2026-09-15 probe of
@@ -52,14 +55,42 @@ public class LoginPage extends BasePage {
         return this;
     }
 
+    /**
+     * CONFIRMED live (2026-10-03): the same render-churn that hits "#phone" (see
+     * waitForPhoneFieldWithReload) also hits the OTP boxes - a real TimeoutError on
+     * Frame.fill("#otp-1"). Each digit gets its own short retry: re-querying the
+     * locator fresh (page.locator(...) re-resolves by selector every call, so a
+     * detached element from a previous attempt is simply gone, not reused) rather
+     * than reloading the whole page, since by this point the phone step already
+     * succeeded and a reload would lose that.
+     */
     public LoginPage enterOtp(String otp) {
         if (otp.length() != OTP_LENGTH) {
             throw new IllegalArgumentException("Expected a " + OTP_LENGTH + "-digit OTP, got: " + otp);
         }
         for (int i = 0; i < OTP_LENGTH; i++) {
-            page.locator(OTP_BOX_ID_PREFIX + i).fill(String.valueOf(otp.charAt(i)));
+            fillOtpDigitWithRetry(i, String.valueOf(otp.charAt(i)));
         }
         return this;
+    }
+
+    private static final int OTP_FILL_RETRIES = 3;
+
+    private void fillOtpDigitWithRetry(int index, String digit) {
+        String selector = OTP_BOX_ID_PREFIX + index;
+        for (int attempt = 1; attempt <= OTP_FILL_RETRIES; attempt++) {
+            try {
+                page.locator(selector).fill(digit);
+                return;
+            } catch (PlaywrightException e) {
+                if (attempt == OTP_FILL_RETRIES) {
+                    throw e;
+                }
+                System.out.println("[LOGIN] Filling " + selector + " failed (attempt " + attempt
+                        + "/" + OTP_FILL_RETRIES + "), retrying...");
+                page.waitForTimeout(500);
+            }
+        }
     }
 
     public void submitOtp() {
@@ -68,12 +99,46 @@ public class LoginPage extends BasePage {
                 () -> !isVisible(OTP_BOX_ID_PREFIX + "0"));
     }
 
-    /** Convenience method chaining the full flow for the common "happy path" case. */
+    private static final int LOGIN_RENDER_RETRIES = 3;
+    private static final double LOGIN_RENDER_TIMEOUT_MS = 10000;
+
+    /**
+     * Convenience method chaining the full flow for the common "happy path" case.
+     *
+     * CONFIRMED live (2026-10-03): under heavy same-session automation, dev-food.hoponbd.com
+     * sometimes fails to render the /login route in time after HomePage.openLogin()'s click -
+     * a real com.microsoft.playwright.TimeoutError waiting for "#phone" (not an OTP issue, the
+     * phone field itself never appeared). Reloading and re-opening login a couple of times
+     * recovers it (same fix proven out manually: a failed first attempt followed by a clean
+     * second attempt after a reload). Doing that here, inside one test attempt, is far cheaper
+     * than relying solely on the outer TestNG-level RetryAnalyzer, which restarts the whole
+     * browser + order flow from scratch on every retry.
+     */
     public void loginWithPhoneAndOtp(String phoneNumber, String otp) {
+        waitForPhoneFieldWithReload();
         enterPhoneNumber(phoneNumber);
         submitPhoneNumber();
         enterOtp(otp);
         submitOtp();
+    }
+
+    private void waitForPhoneFieldWithReload() {
+        for (int attempt = 1; attempt <= LOGIN_RENDER_RETRIES; attempt++) {
+            try {
+                page.locator(PHONE_INPUT).waitFor(new Locator.WaitForOptions()
+                        .setState(WaitForSelectorState.VISIBLE)
+                        .setTimeout(LOGIN_RENDER_TIMEOUT_MS));
+                return;
+            } catch (PlaywrightException e) {
+                if (attempt == LOGIN_RENDER_RETRIES) {
+                    throw e;
+                }
+                System.out.println("[LOGIN] #phone did not render within " + (int) LOGIN_RENDER_TIMEOUT_MS
+                        + "ms (attempt " + attempt + "/" + LOGIN_RENDER_RETRIES + "), reloading and retrying...");
+                page.reload();
+                new HomePage(page).openLogin();
+            }
+        }
     }
 
     public void resendOtp() {

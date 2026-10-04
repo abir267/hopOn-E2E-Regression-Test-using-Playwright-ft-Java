@@ -12,8 +12,6 @@ import com.microsoft.playwright.options.Cookie;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -131,7 +129,7 @@ public class MqttListener implements AutoCloseable {
                 .keepAlive(30)
                 .send()
                 .get(15, java.util.concurrent.TimeUnit.SECONDS);
-        System.out.println(timestamp() + " [MQTT] Connected: " + clientId);
+        System.out.println("[MQTT][LISTENER] Connected: " + clientId);
         return this;
     }
 
@@ -140,7 +138,7 @@ public class MqttListener implements AutoCloseable {
                 .topicFilter(topic)
                 .qos(MqttQos.EXACTLY_ONCE)
                 .send();
-        System.out.println(timestamp() + " [MQTT] Subscribed to: " + topic);
+        System.out.println("[MQTT][LISTENER] Subscribed to: " + topic);
         return this;
     }
 
@@ -158,7 +156,7 @@ public class MqttListener implements AutoCloseable {
                 return null;
             }
             String raw = new String(received.get().getPayloadAsBytes(), StandardCharsets.UTF_8);
-            System.out.println(timestamp() + " [MQTT] Message: " + raw);
+            System.out.println("[MQTT][LISTENER] Message: " + raw);
             JsonNode root = mapper.readTree(raw);
             if (orderNo.equals(root.path("orderNo").asText())) {
                 return root;
@@ -172,18 +170,14 @@ public class MqttListener implements AutoCloseable {
             try {
                 client.disconnect();
             } catch (Exception e) {
-                System.out.println(timestamp() + " [MQTT] Error during disconnect: " + e.getMessage());
+                System.out.println("[MQTT][LISTENER] Error during disconnect: " + e.getMessage());
             }
-            System.out.println(timestamp() + " [MQTT] Disconnected");
+            System.out.println("[MQTT][LISTENER] Disconnected");
         }
     }
 
     @Override
     public void close() {
         disconnect();
-    }
-
-    private static String timestamp() {
-        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 }

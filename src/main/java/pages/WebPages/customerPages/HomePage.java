@@ -116,8 +116,18 @@ public class HomePage extends BasePage {
         return isVisible(RESULT_CARD);
     }
 
+    /**
+     * CONFIRMED live (2026-10-03): a manual click-through of this exact flow never
+     * reproduces the login-form instability seen under automation (element churn on
+     * "#phone"/"#otp-*") - confirming the live site itself is fine, and the gap is
+     * purely timing: a human always leaves a beat between navigating here and
+     * touching the form, which the Angular app's zoneless change detection apparently
+     * needs to finish settling. A short explicit wait here, not just another
+     * selector-visibility wait, gives scripted interaction that same beat.
+     */
     public void openLogin() {
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Log In")).first().click();
+        page.waitForTimeout(1000);
     }
 
     public boolean isLoggedIn() {

@@ -8,9 +8,9 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.Geolocation;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.WebPages.adminPages.AdminLoginPage;
-import pages.WebPages.adminPages.LiveOrdersPage;
-import pages.WebPages.adminPages.WebRestaurantPage;
+import pages.WebPages.webrestaurantPages.WebRestaurantLogin;
+import pages.WebPages.webrestaurantPages.LiveOrdersPage;
+import pages.WebPages.webrestaurantPages.RestaurantPortalPage;
 import pages.WebPages.customerPages.CartPage;
 import pages.WebPages.customerPages.CheckoutPage;
 import pages.WebPages.customerPages.HomePage;
@@ -110,7 +110,7 @@ public class RestaurantNotAcceptingOrdersTest {
         Page page = browser.newContext(new Browser.NewContextOptions()
                 .setBaseURL(ConfigReader.restaurantAdminUrl())
                 .setViewportSize(1440, 900)).newPage();
-        WebRestaurantPage restaurant = new AdminLoginPage(page)
+        RestaurantPortalPage restaurant = new WebRestaurantLogin(page)
                 .loginWithEmailAndPassword(ConfigReader.restaurantAdminEmail(), ConfigReader.restaurantAdminPassword());
         restaurant.openLiveOrders();
         return new LiveOrdersPage(page);

@@ -171,7 +171,7 @@ same way. Know which is which before relying on it:
 
 **Confirmed against real traffic / real UI (safe to build on):**
 - Customer login (phone+OTP), search→cart→checkout→place order (`pages/WebPages/customerPages/*`)
-- Restaurant-admin login, sidebar nav, Live Orders accept/ready-for-pickup flow, pickup PIN (`pages/WebPages/adminPages/*`)
+- Restaurant-admin login, sidebar nav, Live Orders accept/ready-for-pickup flow, pickup PIN (`pages/WebPages/webrestaurantPages/*`)
 - `DriverAPI` — every status transition (Accepted/Arrived/PickedUp/Delivered), the photo-proof upload endpoint, and the delivery PIN requirement were each confirmed via a real device network capture or a real API call, documented inline in `DriverAPI`'s class-level Javadoc
 
 **Still stubs — guessed, unverified, throw `UnsupportedOperationException`:**
@@ -254,10 +254,10 @@ hopon-food-automation/
 │   │   └── headerManager.java             # shared header builders (anon/auth/driver)
 │   ├── pages/WebPages/
 │   │   ├── customerPages/                 # Page Object Model - customer web app (CONFIRMED)
-│   │   └── adminPages/                    # Page Object Model - restaurant admin (CONFIRMED)
+│   │   └── webrestaurantPages/                    # Page Object Model - restaurant admin (CONFIRMED)
 │   │       ├── AdminBasePage.java
-│   │       ├── AdminLoginPage.java
-│   │       ├── WebRestaurantPage.java     # sidebar nav
+│   │       ├── WebRestaurantLogin.java
+│   │       ├── RestaurantPortalPage.java     # sidebar nav
 │   │       ├── LiveOrdersPage.java        # New/Preparing/Ready tabs, accept, ready, extend prep, cancel, pickup PIN
 │   │       └── MenuManagementPage.java    # item availability (Available/Not Available) toggle
 │   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB), MqttListener (CONFIRMED)

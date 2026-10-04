@@ -1,4 +1,4 @@
-package pages.WebPages.adminPages;
+package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;

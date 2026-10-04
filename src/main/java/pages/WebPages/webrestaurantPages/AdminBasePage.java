@@ -1,4 +1,4 @@
-package pages.WebPages.adminPages;
+package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -11,6 +11,7 @@ public abstract class AdminBasePage {
 
     protected AdminBasePage(Page page) {
         this.page = page;
+        utils.MqttConsoleCapture.attach(page, "RESTAURANT");
     }
 
     protected Locator locator(String selector) {

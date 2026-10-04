@@ -9,9 +9,9 @@ import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.Geolocation;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.WebPages.adminPages.AdminLoginPage;
-import pages.WebPages.adminPages.LiveOrdersPage;
-import pages.WebPages.adminPages.WebRestaurantPage;
+import pages.WebPages.webrestaurantPages.WebRestaurantLogin;
+import pages.WebPages.webrestaurantPages.LiveOrdersPage;
+import pages.WebPages.webrestaurantPages.RestaurantPortalPage;
 import pages.WebPages.customerPages.CartPage;
 import pages.WebPages.customerPages.CheckoutPage;
 import pages.WebPages.customerPages.HomePage;
@@ -89,7 +89,7 @@ public class RestaurantCancelsOrderTest {
             Page adminPage = browser.newContext(new Browser.NewContextOptions()
                     .setBaseURL(ConfigReader.restaurantAdminUrl())
                     .setViewportSize(1440, 900)).newPage();
-            WebRestaurantPage restaurant = new AdminLoginPage(adminPage)
+            RestaurantPortalPage restaurant = new WebRestaurantLogin(adminPage)
                     .loginWithEmailAndPassword(ConfigReader.restaurantAdminEmail(), ConfigReader.restaurantAdminPassword());
             restaurant.openLiveOrders();
             LiveOrdersPage liveOrders = new LiveOrdersPage(adminPage);

@@ -501,7 +501,7 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
           </tr>
           <tr>
             <td><span class="tag confirmed">confirmed</span></td>
-            <td><code>pages/WebPages/adminPages/*</code></td>
+            <td><code>pages/WebPages/webrestaurantPages/*</code></td>
             <td>Real DOM probe — login, sidebar nav, Live Orders accept / ready-for-pickup, pickup PIN</td>
           </tr>
           <tr>
@@ -588,10 +588,10 @@ cd Docker && docker compose up --build</pre>
 │   │   └── headerManager.java             <span class="path">shared header builders</span>
 │   ├── pages/WebPages/
 │   │   ├── customerPages/                 <span class="ok">CONFIRMED</span> <span class="path">customer web app POM</span>
-│   │   └── adminPages/                    <span class="ok">CONFIRMED</span> <span class="path">restaurant admin POM</span>
+│   │   └── webrestaurantPages/                    <span class="ok">CONFIRMED</span> <span class="path">restaurant admin POM</span>
 │   │       ├── AdminBasePage.java
-│   │       ├── AdminLoginPage.java
-│   │       ├── WebRestaurantPage.java      <span class="path">sidebar nav</span>
+│   │       ├── WebRestaurantLogin.java
+│   │       ├── RestaurantPortalPage.java      <span class="path">sidebar nav</span>
 │   │       ├── LiveOrdersPage.java         <span class="path">New/Preparing/Ready tabs, accept, ready, extend prep, cancel, PIN</span>
 │   │       └── MenuManagementPage.java     <span class="path">item availability (Available/Not Available) toggle</span>
 │   └── utils/                             <span class="path">ConfigReader, TestDataGenerator, RetryAnalyzer, GSheetUpdate (STUB)</span>

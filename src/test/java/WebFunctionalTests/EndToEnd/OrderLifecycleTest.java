@@ -10,9 +10,9 @@ import com.microsoft.playwright.options.Geolocation;
 import foodAPIs.driverModule.DriverAPI;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.WebPages.adminPages.AdminLoginPage;
-import pages.WebPages.adminPages.LiveOrdersPage;
-import pages.WebPages.adminPages.WebRestaurantPage;
+import pages.WebPages.webrestaurantPages.WebRestaurantLogin;
+import pages.WebPages.webrestaurantPages.LiveOrdersPage;
+import pages.WebPages.webrestaurantPages.RestaurantPortalPage;
 import pages.WebPages.customerPages.CartPage;
 import pages.WebPages.customerPages.CheckoutPage;
 import pages.WebPages.customerPages.HomePage;
@@ -51,17 +51,23 @@ public class OrderLifecycleTest {
                     .setHeadless(ConfigReader.headless())
                     .setSlowMo(ConfigReader.slowMo()));
 
-            String orderNo = placeCustomerOrder(browser);
-            System.out.println("[CUSTOMER] Order placed: #" + orderNo);
+            try {
+                String orderNo = placeCustomerOrder(browser);
+                System.out.println("[CUSTOMER] Order placed: #" + orderNo);
 
-            RestaurantAcceptance acceptance = acceptOrderAsRestaurant(browser, orderNo);
-            System.out.println("[RESTAURANT] Order #" + orderNo + " accepted and marked Ready for Pickup (uuid="
-                    + acceptance.orderUuid() + ", pin=" + acceptance.pin() + ")");
+                RestaurantAcceptance acceptance = acceptOrderAsRestaurant(browser, orderNo);
+                System.out.println("[RESTAURANT] Order #" + orderNo + " accepted and marked Ready for Pickup (uuid="
+                        + acceptance.orderUuid() + ", pin=" + acceptance.pin() + ")");
 
-            runDriverFlow(playwright, orderNo, acceptance.orderUuid(), acceptance.pin());
+                runDriverFlow(playwright, orderNo, acceptance.orderUuid(), acceptance.pin());
 
-            browser.close();
-            System.out.println("[RESULT] SUCCESS: full lifecycle completed - customer -> restaurant -> driver (Accepted -> Arrived -> PickedUp -> Delivered).");
+                browser.close();
+                System.out.println("[RESULT] SUCCESS: full lifecycle completed - customer -> restaurant -> driver (Accepted -> Arrived -> PickedUp -> Delivered).");
+            } catch (Throwable t) {
+                System.out.println("[FAILED] customerToRestaurantToDriverAcceptance: " + t.getClass().getSimpleName()
+                        + " - " + t.getMessage());
+                throw t;
+            }
         }
     }
 
@@ -99,7 +105,6 @@ public class OrderLifecycleTest {
         String orderNo = checkoutPage.orderId();
         Assert.assertNotNull(orderNo, "Expected a non-null order number on confirmation");
 
-        context.close();
         return orderNo;
     }
 
@@ -112,7 +117,7 @@ public class OrderLifecycleTest {
                 .setViewportSize(1440, 900));
         Page page = context.newPage();
 
-        WebRestaurantPage restaurant = new AdminLoginPage(page)
+        RestaurantPortalPage restaurant = new WebRestaurantLogin(page)
                 .loginWithEmailAndPassword(ConfigReader.restaurantAdminEmail(), ConfigReader.restaurantAdminPassword());
         restaurant.openLiveOrders();
 
@@ -126,7 +131,6 @@ public class OrderLifecycleTest {
         String pin = liveOrders.pickupPin();
         liveOrders.markReadyForPickup();
 
-        context.close();
         return new RestaurantAcceptance(orderUuid, pin);
     }
 

@@ -3,8 +3,8 @@ package WebFunctionalTests.AdminPortal;
 import init.AdminBaseRunner;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import pages.WebPages.adminPages.AdminLoginPage;
-import pages.WebPages.adminPages.WebRestaurantPage;
+import pages.WebPages.webrestaurantPages.WebRestaurantLogin;
+import pages.WebPages.webrestaurantPages.RestaurantPortalPage;
 import utils.ConfigReader;
 
 /**
@@ -13,14 +13,14 @@ import utils.ConfigReader;
  * its own heading. Also documents (rather than fails on) the current known
  * gap: Dashboard renders generic ride-hailing placeholder content instead of
  * real restaurant data, while Live Orders / Menu Management / Discount &amp;
- * Promotions are genuinely implemented - see WebRestaurantPage's class doc
+ * Promotions are genuinely implemented - see RestaurantPortalPage's class doc
  * for the 2026-09-19 probe this is based on.
  */
 public class WebRestaurantNavigationTest extends AdminBaseRunner {
 
     @Test
     public void sidebarTabsLoadExpectedContent() {
-        WebRestaurantPage restaurant = new AdminLoginPage(page)
+        RestaurantPortalPage restaurant = new WebRestaurantLogin(page)
                 .loginWithEmailAndPassword(ConfigReader.restaurantAdminEmail(), ConfigReader.restaurantAdminPassword());
 
         Assert.assertTrue(restaurant.isSidebarVisible(), "Sidebar should be visible after login");

@@ -1,4 +1,4 @@
-package pages.WebPages.adminPages;
+package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -26,12 +26,12 @@ import com.microsoft.playwright.options.AriaRole;
  * that known placeholder text rather than any real dashboard widget, since
  * there is no real dashboard implementation to assert against yet.
  */
-public class WebRestaurantPage extends AdminBasePage {
+public class RestaurantPortalPage extends AdminBasePage {
 
     private static final String SIDEBAR = "aside";
     private static final String DASHBOARD_PLACEHOLDER_TEXT = "Weekly Ride Report";
 
-    public WebRestaurantPage(Page page) {
+    public RestaurantPortalPage(Page page) {
         super(page);
     }
 
@@ -40,25 +40,25 @@ public class WebRestaurantPage extends AdminBasePage {
                 new Locator.GetByRoleOptions().setName(exactName).setExact(true));
     }
 
-    public WebRestaurantPage openDashboard() {
+    public RestaurantPortalPage openDashboard() {
         sidebarLink("Dashboard").click();
         page.waitForURL("**/dashboard");
         return this;
     }
 
-    public WebRestaurantPage openLiveOrders() {
+    public RestaurantPortalPage openLiveOrders() {
         sidebarLink("Live Orders").click();
         page.waitForURL("**/live-orders");
         return this;
     }
 
-    public WebRestaurantPage openMenuManagement() {
+    public RestaurantPortalPage openMenuManagement() {
         sidebarLink("Menu Management").click();
         page.waitForURL("**/menu-management");
         return this;
     }
 
-    public WebRestaurantPage openDiscountAndPromotions() {
+    public RestaurantPortalPage openDiscountAndPromotions() {
         sidebarLink("Discount & Promotions").click();
         page.waitForURL("**/promotion");
         return this;

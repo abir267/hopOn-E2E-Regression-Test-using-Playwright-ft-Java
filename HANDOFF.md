@@ -98,7 +98,7 @@ hopon-food-automation/
 ## 4. Key design decisions (don't undo these without reason)
 
 - **Page Object Model**, one class per screen, all under `pages.WebPages.customerPages`.
-  Leaves room to add `pages.WebPages.adminPages` or a future `pages.MobilePages`
+  Leaves room to add `pages.WebPages.webrestaurantPages` or a future `pages.MobilePages`
   without restructuring.
 - **`init.BaseRunner`**: one `Browser` per test **suite**, a fresh
   `BrowserContext` per test **method**. This isolation matters because cart
@@ -186,7 +186,7 @@ useful as a Jenkins agent step or for guaranteeing environment parity.
 ## 6. What NOT to change without a reason
 
 - Don't flatten `pages.WebPages.customerPages` back to a flat `pages` package —
-  it was nested deliberately for future `adminPages`/`vendorPages` siblings.
+  it was nested deliberately for future `webrestaurantPages`/`vendorPages` siblings.
 - Don't move `TestData.properties` into `src/.../resources` or commit it —
   it's meant to stay a root-level, gitignored, per-machine file.
 - Don't remove the fresh-`BrowserContext`-per-test pattern in `BaseRunner` —
