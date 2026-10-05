@@ -126,8 +126,26 @@ public class HomePage extends BasePage {
      * selector-visibility wait, gives scripted interaction that same beat.
      */
     public void openLogin() {
+        waitForStartupRequestsToSettle();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Log In")).first().click();
         page.waitForTimeout(1000);
+    }
+
+    /**
+     * CONFIRMED live (2026-10-05): with geolocation granted the page fires a burst of startup requests
+     * (reverse-geocode, food-carts/detail, newAccessToken) that all come back 401 for a logged-out
+     * visitor. A "Log In" click that lands in the middle of that burst is sometimes swallowed - the
+     * login screen never opens and #phone never renders (reproduced ~1 in 3 loads). Waiting for the
+     * network to go quiet first removes the race; the timeout is only a safety net because the app
+     * can keep polling.
+     */
+    private void waitForStartupRequestsToSettle() {
+        try {
+            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE,
+                    new Page.WaitForLoadStateOptions().setTimeout(3000));
+        } catch (com.microsoft.playwright.PlaywrightException ignored) {
+            // still busy after 3s - go ahead anyway
+        }
     }
 
     public boolean isLoggedIn() {

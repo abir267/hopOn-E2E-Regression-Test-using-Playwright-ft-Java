@@ -68,30 +68,31 @@ public class LoginPage extends BasePage {
         if (otp.length() != OTP_LENGTH) {
             throw new IllegalArgumentException("Expected a " + OTP_LENGTH + "-digit OTP, got: " + otp);
         }
-        for (int i = 0; i < OTP_LENGTH; i++) {
-            fillOtpDigitWithRetry(i, String.valueOf(otp.charAt(i)));
+        // CONFIRMED live (2026-10-05): the OTP boxes sometimes get re-rendered half way through (a late
+        // 401 from the startup requests resets the form), so e.g. #otp-2 disappears after #otp-0/#otp-1
+        // were filled. A short per-digit wait that restarts from the first digit recovers it, instead of
+        // burning 3 x 30s on a box that no longer exists.
+        for (int attempt = 1; attempt <= OTP_FILL_RETRIES; attempt++) {
+            try {
+                for (int i = 0; i < OTP_LENGTH; i++) {
+                    page.locator(OTP_BOX_ID_PREFIX + i).fill(String.valueOf(otp.charAt(i)),
+                            new Locator.FillOptions().setTimeout(OTP_DIGIT_TIMEOUT_MS));
+                }
+                return this;
+            } catch (PlaywrightException e) {
+                if (attempt == OTP_FILL_RETRIES) {
+                    throw e;
+                }
+                System.out.println("[LOGIN] OTP boxes changed while typing (attempt " + attempt + "/"
+                        + OTP_FILL_RETRIES + "), re-entering OTP...");
+                page.waitForTimeout(700);
+            }
         }
         return this;
     }
 
     private static final int OTP_FILL_RETRIES = 3;
-
-    private void fillOtpDigitWithRetry(int index, String digit) {
-        String selector = OTP_BOX_ID_PREFIX + index;
-        for (int attempt = 1; attempt <= OTP_FILL_RETRIES; attempt++) {
-            try {
-                page.locator(selector).fill(digit);
-                return;
-            } catch (PlaywrightException e) {
-                if (attempt == OTP_FILL_RETRIES) {
-                    throw e;
-                }
-                System.out.println("[LOGIN] Filling " + selector + " failed (attempt " + attempt
-                        + "/" + OTP_FILL_RETRIES + "), retrying...");
-                page.waitForTimeout(500);
-            }
-        }
-    }
+    private static final double OTP_DIGIT_TIMEOUT_MS = 8000;
 
     public void submitOtp() {
         clickAllowingSelfRemoval(

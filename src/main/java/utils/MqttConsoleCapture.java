@@ -173,6 +173,20 @@ public final class MqttConsoleCapture {
     private static void printMessage(String role, String topic, String payload) {
         try {
             JsonNode root = MAPPER.readTree(payload);
+            if (!root.has("orderNo") && (root.has("message") || root.has("data"))) { // chat message push
+                JsonNode chat = root.has("message") && root.path("message").isObject() ? root.path("message")
+                        : root.path("data").has("content") ? root.path("data").path("content")
+                        : root.path("data").has("message") ? root.path("data") : root;
+                String text = chat.path("message").asText("");
+                String from = chat.path("senderSource").asText(chat.path("mySelf").asBoolean(false) ? "RIDER" : "DRIVER");
+                String chatArrow = ConsoleLogListener.UNICODE ? "←" : "<-";
+                if (text.isEmpty()) {
+                    System.out.println("[MQTT] " + chatArrow + " [" + role + "] chat push: " + payload);
+                } else {
+                    System.out.println("[MQTT] " + chatArrow + " [" + role + "] chat from " + from + ": \"" + text + "\"");
+                }
+                return;
+            }
             String orderNo = root.path("orderNo").asText("?");
             String status = root.path("status").asText("?");
             if (!PRINTED.add(role + "|" + root.path("id").asText() + "|" + root.path("timestamp").asText() + "|" + status)) {

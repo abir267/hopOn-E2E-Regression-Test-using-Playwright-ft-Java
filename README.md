@@ -74,12 +74,34 @@ mvn "-Dsuite=test-suites/<suite-file>.xml" "-Dexec.mainClass=init.TestRunner" "-
 > in `exec:java` makes Maven misread it as a lifecycle phase and fail with
 > `LifecyclePhaseNotFoundException`.
 
+### The 3 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
+
+These three drive the whole system at once â€” customer web app, restaurant-admin web app and the driver app â€”
+and are the ones to run first. Each prints every step with a timestamp, plus the real MQTT pushes the customer
+and restaurant web apps receive (see "Reading the terminal output" below).
+
+| # | Test class | Flow | Command (`-Dsuite=`) |
+|---|---|---|---|
+| 1 | `OrderLifecycleTest` | customer orders â†’ restaurant accepts **and** marks Ready â†’ driver Accepted â†’ Arrived â†’ PickedUp â†’ Delivered | `test-suites/orderLifecycle.xml` |
+| 2 | `OrderLifecycleDriverInLoopTest` | driver accepts and arrives **while the restaurant is still Preparing**; restaurant marks Ready after; driver then picks up + delivers | `test-suites/orderLifecycleDriverInLoop.xml` |
+| 3 | `OrderLifecycleChatTest` | customer orders â†’ restaurant Preparing â†’ driver assigned â†’ **customer chats 4 messages** â†’ driver `ok` â†’ restaurant Ready for Pickup â†’ driver `I am coming` â†’ delivered | `test-suites/orderLifecycleChat.xml` |
+
+```bash
+mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+```
+
+Customer logins use a freshly generated number: `011` + 8 random digits (`TestDataGenerator.randomRiderPhone()`),
+OTP is always `1122` (`test.user.otp` in `TestData.properties`). `riderlist.csv` is no longer used for logins.
+
 ### Available suites
 
 | Suite file | What it does |
 |---|---|
 | `test-suites/orderLifecycle.xml` | **Full 3-system flow.** Customer places an order on QA Burger Express → restaurant accepts *and* marks it ready → driver runs Accepted → Arrived → PickedUp → Delivered (with photo proof). |
 | `test-suites/orderLifecycleDriverInLoop.xml` | Same full flow, but realistic interleaving: driver accepts and arrives **while the restaurant is still Preparing**, restaurant marks ready *after*, then driver completes pickup + delivery. |
+| `test-suites/orderLifecycleChat.xml` | **Order with customer â†” driver chat.** Customer orders â†’ restaurant accepts to *Preparing* â†’ driver is assigned â†’ customer sends 4 chat messages (typed + quick reply) in the web UI â†’ driver answers `ok` â†’ restaurant marks *Ready for Pickup* â†’ driver says `I am coming` â†’ driver completes Arrived â†’ PickedUp â†’ Delivered. Each driver reply is asserted to show up in the customer's chat panel. |
 | `test-suites/validationFlows.xml` | **Negative-path / bug-report suite**, 10 tests — see §4 below for the full list of what each one checks and confirms. |
 | `test-suites/webRestaurant.xml` | Restaurant-admin sidebar smoke test: logs in, walks all 4 tabs (Dashboard/Live Orders/Menu Management/Discount & Promotions). Documents that Dashboard is still placeholder content. |
 | `test-suites/smoke.xml` | Fast customer-only subset: 1 login test + 1 empty-cart check. |
@@ -113,6 +135,42 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
 
 If you see a `Retrying '...' (attempt N/4)` line, that's expected — see the
 flakiness note in §7, not a real failure as long as it ends in `Passes: 1`.
+
+#### Chat lifecycle test (`OrderLifecycleChatTest`)
+
+```bash
+mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+```
+
+The customer chats through the real web UI ("Chat with Rider" appears once a driver accepts). The driver app
+has no UI, so `foodAPIs/driverModule/DriverChat` publishes the driver's replies over MQTT exactly like the app
+does â€” topic `ride/message`, payload `{"type":"IncomingRideMessage","referenceId":<order uuid>,"message":...,
+"senderSource":"DRIVER","receiverSource":"RIDER",...}`, login = driver user id + driver token (CONFIRMED by
+capturing what the customer web app publishes). Real output:
+
+```
+[CUSTOMER] Order placed: #026-5AC
+[RESTAURANT] Order #026-5AC accepted -> Preparing (uuid=...)
+[DRIVER] Order #026-5AC -> Accepted (assigned to MD MIZANUR RAHMAN)
+[CUSTOMER] Opened chat with rider
+[CUSTOMER] Chat sent: "Hi, how long will it take?"
+[CUSTOMER] Chat sent (quick reply): "Wait for few minutes"
+[CUSTOMER] Chat sent: "Please bring extra napkins"
+[CUSTOMER] Chat sent: "Thank you!"
+[DRIVER] Chat sent: "ok"
+[CUSTOMER] Chat received from driver: "ok"
+[RESTAURANT] Order #026-5AC marked Ready for Pickup (status=ReadyForPickup, pin=4672)
+[DRIVER] Chat sent: "I am coming"
+[CUSTOMER] Chat received from driver: "I am coming"
+[DRIVER] Order #026-5AC -> Arrived at restaurant
+[DRIVER] Order #026-5AC -> PickedUp, heading to customer
+[DRIVER] Order #026-5AC -> Delivered (photo proof uploaded)
+[RESULT] SUCCESS: order -> preparing -> driver assigned -> chat (customer x4, driver ok) -> ready for pickup -> driver 'I am coming' -> delivered.
+```
+
+With the terminal listener (see "Reading the terminal output") the `[MQTT]` pushes are interleaved too, including
+`[MQTT] <- [CUSTOMER] chat from DRIVER: "ok"`. Customer login numbers are generated as `011` + 8 random digits
+(OTP is always `1122`).
 
 ### Alternative ways to run (same tests, different entrypoints)
 
@@ -269,8 +327,13 @@ mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="show-tr
 
 ## 7. Known flakiness (and why it self-heals)
 
-`DataSource/riderlist.csv` only has 350 test phone numbers, reused across
-every run. Under heavy same-session usage the dev backend's OTP step can
+**Login race (fixed 2026-10-05):** with geolocation granted, the customer home page fires a burst of startup
+requests that return `401` for a logged-out visitor; a "Log In" click landing in that burst was sometimes swallowed
+(`#phone` never rendered) and the OTP boxes could be re-rendered mid-typing (`#otp-2` timeouts). `HomePage.openLogin()`
+now waits (max 3s) for the network to settle first, and `LoginPage.enterOtp()` restarts from the first digit if the
+boxes change. 16 of 16 probe logins passed with no retries afterwards.
+
+Under heavy same-session usage the dev backend's OTP step can
 occasionally time out (rate-limiting, or just a slow render of the OTP
 boxes) — CONFIRMED the login mechanics themselves are fine (a fresh manual
 run completes in well under half the default timeout), so this is transient,
@@ -308,6 +371,7 @@ hopon-food-automation/
 │   │   ├── orderModule/OrderAPI.java      # STUB - no confirmed contract yet
 │   │   ├── driverModule/
 │   │   │   ├── DriverAPI.java             # CONFIRMED - full driver order-status lifecycle + photo proof
+│   │   │   ├── DriverChat.java            # CONFIRMED - driver chat reply via MQTT publish (topic ride/message)
 │   │   │   └── PlaceholderProofPhotos.java# tiny embedded images for automated "photo proof"
 │   │   └── headerManager.java             # shared header builders (anon/auth/driver)
 │   ├── pages/WebPages/
@@ -324,7 +388,7 @@ hopon-food-automation/
 │   │   ├── AuthTests/                     # customer login
 │   │   ├── CustomerJourney/               # customer search -> order
 │   │   ├── AdminPortal/                   # restaurant-admin sidebar smoke test
-│   │   ├── EndToEnd/                      # full 3-system lifecycle tests (see §3)
+│   │   ├── EndToEnd/                      # the 3 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat (see §3)
 │   │   └── ValidationFlows/               # negative-path / bug-report suite, 10 tests (see §4)
 │   ├── APITests/
 │   │   ├── AuthApiTest.java               # disabled until AuthAPI is wired up

@@ -33,7 +33,25 @@ public class TestDataGenerator {
      * that lockout within a handful of runs; rotating across riderlist.csv's ~350
      * numbers spreads that load out.
      */
-    public static synchronized String randomRiderPhone() {
+    public static String randomRiderPhone() {
+        return randomRiderPhone011();
+    }
+
+    /**
+     * Freshly generated customer login number: always starts with "011" followed by 8 random
+     * digits (11 digits total, e.g. 01123773500). Used by every customer-web login so each run
+     * gets a new number instead of re-using one from riderlist.csv.
+     */
+    public static String randomRiderPhone011() {
+        StringBuilder sb = new StringBuilder("011");
+        for (int i = 0; i < 8; i++) {
+            sb.append(RANDOM.nextInt(10));
+        }
+        return sb.toString();
+    }
+
+    /** Old behaviour: a random number picked from DataSource/riderlist.csv (all start with 0112). */
+    public static synchronized String randomRiderPhoneFromList() {
         if (riderPhones == null) {
             try {
                 riderPhones = Files.readAllLines(RIDER_LIST_CSV).stream()

@@ -64,4 +64,42 @@ public class OrderTrackingPage extends BasePage {
         return page.locator("text=/\\d{1,2}:\\d{2}\\s?(AM|PM)\\s*-\\s*\\d{1,2}:\\d{2}\\s?(AM|PM)/")
                 .first().innerText().trim();
     }
+
+    // ---- Rider chat (CONFIRMED live 2026-10-05): the "Chat with Rider" button only appears once a
+    // driver has accepted the order. The panel has quick-reply buttons ("Coming", "Wait for few
+    // minutes", "I am at pickup point", "I am coming..."), a "Type a message..." box and an
+    // icon-only send button right after it. Messages go out over MQTT (topic ride/message) and are
+    // stored by GET /services/ride/api/message/{orderUuid}.
+
+    private com.microsoft.playwright.Locator chatInput() {
+        return page.getByPlaceholder("Type a message...");
+    }
+
+    public OrderTrackingPage openRiderChat() {
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Chat with Rider")).click();
+        chatInput().waitFor();
+        return this;
+    }
+
+    public OrderTrackingPage sendChatMessage(String text) {
+        chatInput().fill(text);
+        chatInput().locator("xpath=following::button[1]").click();
+        return this;
+    }
+
+    public OrderTrackingPage sendQuickReply(String label) {
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(label).setExact(true)).click();
+        return this;
+    }
+
+    /** Waits up to timeoutSeconds for a chat bubble with exactly this text to show in the open chat panel. */
+    public boolean chatShows(String text, int timeoutSeconds) {
+        try {
+            page.getByText(text, new Page.GetByTextOptions().setExact(true)).last()
+                    .waitFor(new com.microsoft.playwright.Locator.WaitForOptions().setTimeout(timeoutSeconds * 1000.0));
+            return true;
+        } catch (com.microsoft.playwright.PlaywrightException e) {
+            return false;
+        }
+    }
 }

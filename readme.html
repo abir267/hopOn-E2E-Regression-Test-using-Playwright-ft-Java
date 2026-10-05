@@ -331,6 +331,21 @@ mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install
       <p>Quote every <code>-D</code> argument exactly as shown, all one line. An unquoted <code>=</code>, or a stray space around the colon in <code>exec:java</code>, makes Maven misread it as a lifecycle phase and fail with <code>LifecyclePhaseNotFoundException</code>.</p>
     </div>
 
+    <h3>The 3 main test cases <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">â€” <code>WebFunctionalTests/EndToEnd/</code></span></h3>
+    <p>These drive customer web, restaurant-admin web and the driver app at once â€” run them first. Each prints every step with a timestamp plus the real MQTT pushes the customer and restaurant web apps receive.</p>
+    <ol>
+      <li><code>OrderLifecycleTest</code> â€” customer orders â†’ restaurant accepts and marks Ready â†’ driver Accepted â†’ Arrived â†’ PickedUp â†’ Delivered. Suite: <code>test-suites/orderLifecycle.xml</code></li>
+      <li><code>OrderLifecycleDriverInLoopTest</code> â€” driver accepts and arrives while the restaurant is still Preparing; restaurant marks Ready after; driver then picks up and delivers. Suite: <code>test-suites/orderLifecycleDriverInLoop.xml</code></li>
+      <li><code>OrderLifecycleChatTest</code> â€” customer orders â†’ restaurant Preparing â†’ driver assigned â†’ customer sends 4 chat messages â†’ driver <code>ok</code> â†’ restaurant Ready for Pickup â†’ driver <code>I am coming</code> â†’ delivered. Suite: <code>test-suites/orderLifecycleChat.xml</code></li>
+    </ol>
+    <div class="codeblock">
+      <button class="copy" data-copy>Copy</button>
+      <pre>mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
+    </div>
+    <p>Customer logins use a freshly generated number â€” <code>011</code> + 8 random digits (<code>TestDataGenerator.randomRiderPhone()</code>); the OTP is always <code>1122</code>.</p>
+
     <h3>Available suites</h3>
     <div class="tablewrap">
       <table>
@@ -579,6 +594,7 @@ Total tests run: 1, Passes: 1, Failures: 0, Skips: 0
 
   <section id="flakiness">
     <h2><span class="num">7</span>Known flakiness <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— and why it self-heals</span></h2>
+    <p><strong>Login race (fixed 2026-10-05):</strong> with geolocation granted, the customer home page fires a burst of startup requests that return <code>401</code> for a logged-out visitor; a "Log In" click landing in that burst was sometimes swallowed (<code>#phone</code> never rendered) and the OTP boxes could be re-rendered mid-typing. <code>HomePage.openLogin()</code> now waits (max 3s) for the network to settle first, and <code>LoginPage.enterOtp()</code> restarts from the first digit if the boxes change.</p>
     <p><code>DataSource/riderlist.csv</code> holds 350 test phone numbers, reused across every run. Under heavy same-session usage the dev backend's OTP step can occasionally time out (rate-limiting, or just a slow render of the OTP boxes) — CONFIRMED the login mechanics themselves are fine (a fresh manual run completes in well under half the default timeout), so this is transient, not a real bug.</p>
     <p>Every <code>@Test</code> in <code>EndToEnd</code> / <code>CustomerJourney</code> / <code>ValidationFlows</code> uses <code>utils.RetryAnalyzer</code> — four retries, a fresh random phone each attempt — so this self-heals without you re-running anything. A <code>Retrying '...'</code> line in the output is normal.</p>
   </section>
