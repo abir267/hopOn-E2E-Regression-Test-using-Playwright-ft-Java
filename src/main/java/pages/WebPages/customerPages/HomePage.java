@@ -12,7 +12,9 @@ import com.microsoft.playwright.options.LoadState;
  * CONFIRMED against the live site (2026-09-15 probe of https://dev-food.hoponbd.com,
  * logged in via a riderlist.csv phone + OTP 1122 — see LoginPage):
  *   - search input: no id/data-testid, matched by its placeholder text.
- *   - header login link is `a[href='/login']` (no data-testid), text "Log In".
+ *   - header login link is `a[href='/login']` (no data-testid), text "Login" (CONFIRMED
+ *     changed from "Log In" to "Login", no space, 2026-10-17 — the login MODAL's own submit
+ *     button is still "Log In", with a space; don't conflate the two).
  *   - delivery location control is `#app-current-address` (a <span> inside a
  *     clickable header control); clicking it opens a "Change Delivery Location"
  *     modal with a "Use my current location" button (browser geolocation — see
@@ -29,6 +31,9 @@ public class HomePage extends BasePage {
     private static final String CURRENT_ADDRESS_LABEL = "#app-current-address";
     private static final String SEARCH_INPUT = "input[placeholder*='Search for restaurants']";
     private static final String RESULT_CARD = "hopon-food-search-result-card";
+    // CONFIRMED changed from "Log In" to "Login" (no space) 2026-10-17; the login modal's own
+    // submit button is a different element and is still "Log In" with a space - see LoginPage.
+    private static final String HEADER_LOGIN_LINK_NAME = "Login";
 
     public HomePage(Page page) {
         super(page);
@@ -127,7 +132,7 @@ public class HomePage extends BasePage {
      */
     public void openLogin() {
         waitForStartupRequestsToSettle();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Log In")).first().click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(HEADER_LOGIN_LINK_NAME)).first().click();
         page.waitForTimeout(1000);
     }
 
@@ -149,6 +154,6 @@ public class HomePage extends BasePage {
     }
 
     public boolean isLoggedIn() {
-        return !page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Log In")).first().isVisible();
+        return !page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(HEADER_LOGIN_LINK_NAME)).first().isVisible();
     }
 }

@@ -74,23 +74,29 @@ mvn "-Dsuite=test-suites/<suite-file>.xml" "-Dexec.mainClass=init.TestRunner" "-
 > in `exec:java` makes Maven misread it as a lifecycle phase and fail with
 > `LifecyclePhaseNotFoundException`.
 
-### The 3 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
+### The 4 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
 
-These three drive the whole system at once â€” customer web app, restaurant-admin web app and the driver app â€”
+These four drive the whole system at once — customer web app, restaurant-admin web app and the driver app —
 and are the ones to run first. Each prints every step with a timestamp, plus the real MQTT pushes the customer
 and restaurant web apps receive (see "Reading the terminal output" below).
 
 | # | Test class | Flow | Command (`-Dsuite=`) |
 |---|---|---|---|
-| 1 | `OrderLifecycleTest` | customer orders â†’ restaurant accepts **and** marks Ready â†’ driver Accepted â†’ Arrived â†’ PickedUp â†’ Delivered | `test-suites/orderLifecycle.xml` |
+| 1 | `OrderLifecycleTest` | customer orders → restaurant accepts **and** marks Ready → driver Accepted → Arrived → PickedUp → Delivered | `test-suites/orderLifecycle.xml` |
 | 2 | `OrderLifecycleDriverInLoopTest` | driver accepts and arrives **while the restaurant is still Preparing**; restaurant marks Ready after; driver then picks up + delivers | `test-suites/orderLifecycleDriverInLoop.xml` |
-| 3 | `OrderLifecycleChatTest` | customer orders â†’ restaurant Preparing â†’ driver assigned â†’ **customer chats 4 messages** â†’ driver `ok` â†’ restaurant Ready for Pickup â†’ driver `I am coming` â†’ delivered | `test-suites/orderLifecycleChat.xml` |
+| 3 | `OrderLifecycleChatTest` | customer orders → restaurant Preparing → driver assigned → **customer chats 4 messages** → driver `ok` → restaurant Ready for Pickup → driver `I am coming` → delivered | `test-suites/orderLifecycleChat.xml` |
+| 4 | `RestaurantCancelsFromPreparingAllReasonsTest` | customer orders → restaurant accepts into Preparing → restaurant **cancels**, once per each of the 4 reasons the modal offers (Out of stock / Store is closing / Customer requested / Other) — 4 complete order→accept→cancel cycles in one run | `test-suites/restaurantCancelsFromPreparing.xml` |
 
 ```bash
 mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/restaurantCancelsFromPreparing.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 ```
+
+`RestaurantCancelsFromPreparingAllReasonsTest` also documents a real backend quirk: the cancel endpoint's response
+always has `status`/`title`/`message` null on success (same as the driver-side cancel `DriverAPI` already notes) —
+`LiveOrdersPage.isOrderPanelOpen()` checks the detail panel actually closing instead of trusting that field.
 
 Customer logins use a freshly generated number: `011` + 8 random digits (`TestDataGenerator.randomRiderPhone()`),
 OTP is always `1122` (`test.user.otp` in `TestData.properties`). `riderlist.csv` is no longer used for logins.
@@ -101,7 +107,7 @@ OTP is always `1122` (`test.user.otp` in `TestData.properties`). `riderlist.csv`
 |---|---|
 | `test-suites/orderLifecycle.xml` | **Full 3-system flow.** Customer places an order on QA Burger Express → restaurant accepts *and* marks it ready → driver runs Accepted → Arrived → PickedUp → Delivered (with photo proof). |
 | `test-suites/orderLifecycleDriverInLoop.xml` | Same full flow, but realistic interleaving: driver accepts and arrives **while the restaurant is still Preparing**, restaurant marks ready *after*, then driver completes pickup + delivery. |
-| `test-suites/orderLifecycleChat.xml` | **Order with customer â†” driver chat.** Customer orders â†’ restaurant accepts to *Preparing* â†’ driver is assigned â†’ customer sends 4 chat messages (typed + quick reply) in the web UI â†’ driver answers `ok` â†’ restaurant marks *Ready for Pickup* â†’ driver says `I am coming` â†’ driver completes Arrived â†’ PickedUp â†’ Delivered. Each driver reply is asserted to show up in the customer's chat panel. |
+| `test-suites/orderLifecycleChat.xml` | **Order with customer ↔ driver chat.** Customer orders → restaurant accepts to *Preparing* → driver is assigned → customer sends 4 chat messages (typed + quick reply) in the web UI → driver answers `ok` → restaurant marks *Ready for Pickup* → driver says `I am coming` → driver completes Arrived → PickedUp → Delivered. Each driver reply is asserted to show up in the customer's chat panel. |
 | `test-suites/validationFlows.xml` | **Negative-path / bug-report suite**, 10 tests — see §4 below for the full list of what each one checks and confirms. |
 | `test-suites/webRestaurant.xml` | Restaurant-admin sidebar smoke test: logs in, walks all 4 tabs (Dashboard/Live Orders/Menu Management/Discount & Promotions). Documents that Dashboard is still placeholder content. |
 | `test-suites/smoke.xml` | Fast customer-only subset: 1 login test + 1 empty-cart check. |
@@ -144,7 +150,7 @@ mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunn
 
 The customer chats through the real web UI ("Chat with Rider" appears once a driver accepts). The driver app
 has no UI, so `foodAPIs/driverModule/DriverChat` publishes the driver's replies over MQTT exactly like the app
-does â€” topic `ride/message`, payload `{"type":"IncomingRideMessage","referenceId":<order uuid>,"message":...,
+does — topic `ride/message`, payload `{"type":"IncomingRideMessage","referenceId":<order uuid>,"message":...,
 "senderSource":"DRIVER","receiverSource":"RIDER",...}`, login = driver user id + driver token (CONFIRMED by
 capturing what the customer web app publishes). Real output:
 
@@ -388,7 +394,7 @@ hopon-food-automation/
 │   │   ├── AuthTests/                     # customer login
 │   │   ├── CustomerJourney/               # customer search -> order
 │   │   ├── AdminPortal/                   # restaurant-admin sidebar smoke test
-│   │   ├── EndToEnd/                      # the 3 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat (see §3)
+│   │   ├── EndToEnd/                      # the 4 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat, RestaurantCancelsFromPreparingAllReasons (see §3)
 │   │   └── ValidationFlows/               # negative-path / bug-report suite, 10 tests (see §4)
 │   ├── APITests/
 │   │   ├── AuthApiTest.java               # disabled until AuthAPI is wired up

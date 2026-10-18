@@ -33,6 +33,9 @@ public class LiveOrdersPage extends AdminBasePage {
     private static final String ACCEPT_BUTTON_NAME = "Accept & Start Preparing";
     private static final String READY_BUTTON_NAME = "Mark as Ready for Pickup";
     private static final String RESTAURANT_STATUS_LABEL = "Restaurant Status";
+    private static final String CANCEL_ORDER_BUTTON_NAME = "Cancel Order";
+    private static final String CONFIRM_CANCELLATION_BUTTON_NAME = "Confirm Cancellation";
+    private static final String OTHER_REASON_DETAILS_PLACEHOLDER = "Provide more details...";
     private final ObjectMapper mapper = new ObjectMapper();
 
     public LiveOrdersPage(Page page) {
@@ -193,6 +196,49 @@ public class LiveOrdersPage extends AdminBasePage {
             toggleRestaurantStatus();
         }
         return this;
+    }
+
+    /**
+     * Cancels the currently-open "Preparing" order, picking one of the modal's cancellation reasons -
+     * CONFIRMED live (2026-10-17): "Cancel Order" on a Preparing order opens a reason picker with four
+     * radio-style labels ("Out of stock", "Store is closing", "Customer requested", "Other") plus
+     * "Keep Order"/"Confirm Cancellation". "Other" additionally reveals a free-text
+     * "Provide more details..." textarea - CONFIRMED NOT required (Confirm Cancellation stayed enabled
+     * with it left blank), but this fills it anyway so the real "Other" path is exercised the same way
+     * a human tester would use it. On confirm the order drops out of every status tab entirely (there is
+     * no "Cancelled" tab in this UI) - CONFIRMED by the detail panel closing back to an empty selection.
+     * Waits on the actual status-update network response, same reasoning as markReadyForPickup() - but
+     * unlike that call, CONFIRMED live (2026-10-17) this endpoint's response always has "status"/"title"/
+     * "message" null on a successful cancel, the same all-null quirk DriverAPI's class doc already notes
+     * for the driver-side cancel. The reliable signal here is response.ok() (200) PLUS the order actually
+     * leaving the detail panel - isOrderPanelOpen() below confirms that second part.
+     */
+    public JsonNode cancelOrderWithReason(String reasonLabel) {
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(CANCEL_ORDER_BUTTON_NAME)).click();
+        page.getByText(reasonLabel, new Page.GetByTextOptions().setExact(true)).click();
+        if ("Other".equals(reasonLabel)) {
+            page.getByPlaceholder(OTHER_REASON_DETAILS_PLACEHOLDER).fill("Automated test cancellation - " + reasonLabel);
+        }
+        var response = page.waitForResponse(
+                r -> r.url().contains("food-orders")
+                        && List.of("POST", "PUT", "PATCH").contains(r.request().method()),
+                () -> page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(CONFIRM_CANCELLATION_BUTTON_NAME)).click());
+        page.waitForTimeout(500);
+        try {
+            JsonNode json = mapper.readTree(response.text());
+            if (!response.ok()) {
+                throw new IllegalStateException("cancelOrderWithReason(" + reasonLabel + ") failed: " + response.status()
+                        + " " + response.statusText() + " - " + json);
+            }
+            return json;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException("Non-JSON response from cancelOrderWithReason(): " + response.text(), e);
+        }
+    }
+
+    /** True while an order's detail panel (Cancel Order / Need More Time / Mark as Ready) is still open. */
+    public boolean isOrderPanelOpen() {
+        return page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(CANCEL_ORDER_BUTTON_NAME)).isVisible();
     }
 
     /**
