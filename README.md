@@ -74,9 +74,9 @@ mvn "-Dsuite=test-suites/<suite-file>.xml" "-Dexec.mainClass=init.TestRunner" "-
 > in `exec:java` makes Maven misread it as a lifecycle phase and fail with
 > `LifecyclePhaseNotFoundException`.
 
-### The 4 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
+### The 5 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
 
-These four drive the whole system at once — customer web app, restaurant-admin web app and the driver app —
+These five drive the whole system at once — customer web app, restaurant-admin web app and the driver app —
 and are the ones to run first. Each prints every step with a timestamp, plus the real MQTT pushes the customer
 and restaurant web apps receive (see "Reading the terminal output" below).
 
@@ -86,17 +86,28 @@ and restaurant web apps receive (see "Reading the terminal output" below).
 | 2 | `OrderLifecycleDriverInLoopTest` | driver accepts and arrives **while the restaurant is still Preparing**; restaurant marks Ready after; driver then picks up + delivers | `test-suites/orderLifecycleDriverInLoop.xml` |
 | 3 | `OrderLifecycleChatTest` | customer orders → restaurant Preparing → driver assigned → **customer chats 4 messages** → driver `ok` → restaurant Ready for Pickup → driver `I am coming` → delivered | `test-suites/orderLifecycleChat.xml` |
 | 4 | `RestaurantCancelsFromPreparingAllReasonsTest` | customer orders → restaurant accepts into Preparing → restaurant **cancels**, once per each of the 4 reasons the modal offers (Out of stock / Store is closing / Customer requested / Other) — 4 complete order→accept→cancel cycles in one run | `test-suites/restaurantCancelsFromPreparing.xml` |
+| 5 | `RestaurantAndDriverSeeCustomerInstructionsTest` | customer writes item **Special Instructions** + checkout **Delivery Instructions** → confirms the restaurant sees the Special Instructions (and correctly does NOT see Delivery Instructions, by design) → confirms the driver's API response has both → completes the order | `test-suites/customerInstructions.xml` |
 
 ```bash
 mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/restaurantCancelsFromPreparing.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/customerInstructions.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 ```
 
 `RestaurantCancelsFromPreparingAllReasonsTest` also documents a real backend quirk: the cancel endpoint's response
 always has `status`/`title`/`message` null on success (same as the driver-side cancel `DriverAPI` already notes) —
 `LiveOrdersPage.isOrderPanelOpen()` checks the detail panel actually closing instead of trusting that field.
+
+`RestaurantAndDriverSeeCustomerInstructionsTest` documents which backend field each note box writes to and who is
+actually meant to see it: the menu item's "Special Instructions" (`itemDetails[].foodInstruction`) is restaurant-
+facing, shown under the order panel's "Customer note" accordion (`LiveOrdersPage.customerNoteText()`); the
+checkout page's "Delivery Instructions" (`deliveryInstruction`) is driver-facing only, by design — confirmed not
+shown anywhere in the restaurant-admin UI, which is correct, not a bug. Both are confirmed present in the
+driver-app API response. It also fixed a real flake: calling `LiveOrdersPage.orderUuidFor()` (which reloads the
+page) before `markReadyForPickup()` was wiping the open order panel and timing out that click — the fix reorders
+so the reload happens after.
 
 Customer logins use a freshly generated number: `011` + 8 random digits (`TestDataGenerator.randomRiderPhone()`),
 OTP is always `1122` (`test.user.otp` in `TestData.properties`). `riderlist.csv` is no longer used for logins.
@@ -394,7 +405,7 @@ hopon-food-automation/
 │   │   ├── AuthTests/                     # customer login
 │   │   ├── CustomerJourney/               # customer search -> order
 │   │   ├── AdminPortal/                   # restaurant-admin sidebar smoke test
-│   │   ├── EndToEnd/                      # the 4 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat, RestaurantCancelsFromPreparingAllReasons (see §3)
+│   │   ├── EndToEnd/                      # the 5 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat, RestaurantCancelsFromPreparingAllReasons, RestaurantAndDriverSeeCustomerInstructions (see §3)
 │   │   └── ValidationFlows/               # negative-path / bug-report suite, 10 tests (see §4)
 │   ├── APITests/
 │   │   ├── AuthApiTest.java               # disabled until AuthAPI is wired up

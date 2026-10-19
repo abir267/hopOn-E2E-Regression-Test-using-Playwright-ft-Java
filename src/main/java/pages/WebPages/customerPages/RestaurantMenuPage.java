@@ -127,10 +127,29 @@ public class RestaurantMenuPage extends BasePage {
      * Use this overload for those items instead of the modal-less addItemToCart().
      */
     public RestaurantMenuPage addItemToCartWithSize(String itemName, String sizeLabel) {
+        return addItemToCartWithSize(itemName, sizeLabel, null);
+    }
+
+    /**
+     * Same as {@link #addItemToCartWithSize(String, String)}, additionally filling the modal's
+     * per-item "Special Instructions" textarea (placeholder "e.g. no mayo/olives") when
+     * {@code specialInstructions} is non-null - CONFIRMED live (2026-10-19): this text is stored
+     * server-side as itemDetails[].foodInstruction, and is the ONLY thing shown under the
+     * restaurant-admin order panel's "Customer note" accordion (LiveOrdersPage.customerNoteText())
+     * - the checkout page's separate CheckoutPage.addOrderNotes() ("Delivery Instructions") is a
+     * different field (deliveryInstruction) that is NOT surfaced anywhere in that admin UI at all,
+     * confirmed by diffing the full panel text with and without it - see
+     * RestaurantAndDriverSeeCustomerInstructionsTest for how both are cross-checked against what
+     * the restaurant and driver actually receive.
+     */
+    public RestaurantMenuPage addItemToCartWithSize(String itemName, String sizeLabel, String specialInstructions) {
         ensureItemVisible(itemName);
         menuItemCardByName(itemName).first().locator("button").click();
         page.getByText("SIZE").waitFor();
         page.getByText(sizeLabel, new Page.GetByTextOptions().setExact(true)).click();
+        if (specialInstructions != null) {
+            page.getByPlaceholder("e.g. no mayo/olives").fill(specialInstructions);
+        }
         // CONFIRMED (network trace, phone reused across test runs from the small
         // riderlist.csv pool): if this exact item+size is ALREADY in the account's
         // cart from an earlier run, "Add to Cart" fires a PUT to "food-carts"

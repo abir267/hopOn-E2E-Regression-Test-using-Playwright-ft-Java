@@ -331,23 +331,26 @@ mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install
       <p>Quote every <code>-D</code> argument exactly as shown, all one line. An unquoted <code>=</code>, or a stray space around the colon in <code>exec:java</code>, makes Maven misread it as a lifecycle phase and fail with <code>LifecyclePhaseNotFoundException</code>.</p>
     </div>
 
-    <h3>The 4 main test cases <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— <code>WebFunctionalTests/EndToEnd/</code></span></h3>
+    <h3>The 5 main test cases <span style="font-family:'IBM Plex Sans';font-weight:400;font-size:.85rem;color:var(--ink-dim)">— <code>WebFunctionalTests/EndToEnd/</code></span></h3>
     <p>These drive customer web, restaurant-admin web and the driver app at once — run them first. Each prints every step with a timestamp plus the real MQTT pushes the customer and restaurant web apps receive.</p>
     <ol>
       <li><code>OrderLifecycleTest</code> — customer orders → restaurant accepts and marks Ready → driver Accepted → Arrived → PickedUp → Delivered. Suite: <code>test-suites/orderLifecycle.xml</code></li>
       <li><code>OrderLifecycleDriverInLoopTest</code> — driver accepts and arrives while the restaurant is still Preparing; restaurant marks Ready after; driver then picks up and delivers. Suite: <code>test-suites/orderLifecycleDriverInLoop.xml</code></li>
       <li><code>OrderLifecycleChatTest</code> — customer orders → restaurant Preparing → driver assigned → customer sends 4 chat messages → driver <code>ok</code> → restaurant Ready for Pickup → driver <code>I am coming</code> → delivered. Suite: <code>test-suites/orderLifecycleChat.xml</code></li>
       <li><code>RestaurantCancelsFromPreparingAllReasonsTest</code> — customer orders → restaurant accepts into Preparing → restaurant cancels, once per each of the 4 reasons the modal offers (Out of stock / Store is closing / Customer requested / Other) — 4 complete order→accept→cancel cycles in one run. Suite: <code>test-suites/restaurantCancelsFromPreparing.xml</code></li>
+      <li><code>RestaurantAndDriverSeeCustomerInstructionsTest</code> — customer writes item Special Instructions + checkout Delivery Instructions → confirms the restaurant sees the Special Instructions (and correctly does NOT see Delivery Instructions, by design) → confirms the driver's API response has both → completes the order. Suite: <code>test-suites/customerInstructions.xml</code></li>
     </ol>
     <div class="codeblock">
       <button class="copy" data-copy>Copy</button>
       <pre>mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
-mvn "-Dsuite=test-suites/restaurantCancelsFromPreparing.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
+mvn "-Dsuite=test-suites/restaurantCancelsFromPreparing.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn "-Dsuite=test-suites/customerInstructions.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java</pre>
     </div>
     <p>Customer logins use a freshly generated number — <code>011</code> + 8 random digits (<code>TestDataGenerator.randomRiderPhone()</code>); the OTP is always <code>1122</code>.</p>
     <p><code>RestaurantCancelsFromPreparingAllReasonsTest</code> also documents a real backend quirk: the cancel endpoint's response always has <code>status</code>/<code>title</code>/<code>message</code> null on success (same as the driver-side cancel <code>DriverAPI</code> already notes) — <code>LiveOrdersPage.isOrderPanelOpen()</code> checks the detail panel actually closing instead of trusting that field.</p>
+    <p><code>RestaurantAndDriverSeeCustomerInstructionsTest</code> documents which backend field each note box writes to and who is meant to see it: the menu item's "Special Instructions" (<code>itemDetails[].foodInstruction</code>) is restaurant-facing, shown under the order panel's "Customer note" accordion (<code>LiveOrdersPage.customerNoteText()</code>); the checkout page's "Delivery Instructions" (<code>deliveryInstruction</code>) is driver-facing only, by design — confirmed not shown anywhere in the restaurant-admin UI, which is correct, not a bug. Both are confirmed present in the driver-app API response. It also fixed a real flake: calling <code>LiveOrdersPage.orderUuidFor()</code> (which reloads the page) before <code>markReadyForPickup()</code> was wiping the open order panel and timing out that click — the fix reorders so the reload happens after.</p>
 
     <h3>Available suites</h3>
     <div class="tablewrap">

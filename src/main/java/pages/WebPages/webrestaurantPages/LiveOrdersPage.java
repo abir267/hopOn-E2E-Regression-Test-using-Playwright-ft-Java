@@ -236,6 +236,40 @@ public class LiveOrdersPage extends AdminBasePage {
         }
     }
 
+    /**
+     * Expands the currently-open order's "Customer note" accordion (collapsed by default, under
+     * Order Items) and returns its text - CONFIRMED live (2026-10-19) this shows the per-item
+     * "Special Instructions" text (itemDetails[].foodInstruction, see
+     * RestaurantMenuPage.addItemToCartWithSize()'s 3-arg overload), NOT the customer's separate
+     * checkout-page "Delivery Instructions" (deliveryInstruction) - that field is confirmed NOT
+     * displayed anywhere in this panel. Returns "" if the accordion isn't present (no note on
+     * this order) or is present but empty once expanded.
+     */
+    public String customerNoteText() {
+        Locator toggle = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Customer note"));
+        if (toggle.count() == 0) {
+            return "";
+        }
+        toggle.first().click();
+        page.waitForTimeout(400);
+        // CONFIRMED live (2026-10-19): the expanded content is the toggle button's next sibling,
+        // a `div.bg-amber-50` holding a "Customer Note" heading and a quoted `<p>` with the text -
+        // strip the heading line and the surrounding quotes rather than trusting exact DOM depth.
+        Locator panel = toggle.first().locator("xpath=following-sibling::div[contains(@class,'bg-amber-50')]");
+        if (panel.count() == 0) {
+            return "";
+        }
+        Locator notePara = panel.first().locator("p");
+        if (notePara.count() == 0) {
+            return "";
+        }
+        String last = notePara.first().innerText().trim();
+        if (last.length() >= 2 && last.startsWith("\"") && last.endsWith("\"")) {
+            last = last.substring(1, last.length() - 1);
+        }
+        return last;
+    }
+
     /** True while an order's detail panel (Cancel Order / Need More Time / Mark as Ready) is still open. */
     public boolean isOrderPanelOpen() {
         return page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(CANCEL_ORDER_BUTTON_NAME)).isVisible();
