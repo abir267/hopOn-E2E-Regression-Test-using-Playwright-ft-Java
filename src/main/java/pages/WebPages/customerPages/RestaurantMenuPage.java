@@ -168,6 +168,72 @@ public class RestaurantMenuPage extends BasePage {
     }
 
     /**
+     * General "Choose options" modal handler for items with MULTIPLE required option
+     * groups plus a quantity stepper - CONFIRMED live (2026-10-27, QA Burger Express
+     * [AA]'s "Crispy Burger" on the "Burgerbb1" tab): the modal can render more than
+     * one required group (there, "SIZE" and a second custom-named group) stacked
+     * above the same "Special Instructions" textarea, "Quantity" stepper
+     * (+/- buttons with aria-label "Increase quantity"/"Decrease quantity", starting
+     * at 1) and "Add to Cart" button seen in {@link #addItemToCartWithSize}. Each
+     * option is still picked by its own exact label text (CONFIRMED unique per
+     * modal regardless of which group it belongs to), so one generic method covers
+     * any number of required groups without needing to know their group headings.
+     *
+     * CONFIRMED live (2026-10-27, same probe): a required group can already have an
+     * option pre-selected (its indicator is a plain div styled with the
+     * "border-emerald-500"/"bg-emerald-500" classes when selected - there is no
+     * aria-checked, this is a custom toggle, not a real radio input). Clicking an
+     * option that is ALREADY selected toggles it back OFF instead of being a no-op,
+     * which leaves that required group unsatisfied and permanently disables both the
+     * quantity stepper and "Add to Cart" - reproduced live, it just hangs until
+     * Playwright's click retry times out. So each option here is only clicked if its
+     * indicator isn't already filled in.
+     *
+     * @param optionLabels exact label text of ONE option per required group, e.g. ["Small", "dsdsd"]
+     * @param quantity     final quantity to reach by clicking "+" from the modal's default of 1 (1 = leave as-is)
+     * @param specialInstructions fills the per-item instructions textarea when non-null, same field addItemToCartWithSize() uses
+     */
+    public RestaurantMenuPage addItemToCartWithOptions(String itemName, java.util.List<String> optionLabels, int quantity, String specialInstructions) {
+        ensureItemVisible(itemName);
+        menuItemCardByName(itemName).first().locator("button").click();
+        page.getByText("Quantity", new Page.GetByTextOptions().setExact(true)).waitFor();
+
+        for (String optionLabel : optionLabels) {
+            Locator label = page.getByText(optionLabel, new Page.GetByTextOptions().setExact(true));
+            Locator indicator = label.locator("xpath=preceding-sibling::div[1]");
+            String indicatorClass = indicator.count() > 0 ? indicator.first().getAttribute("class") : null;
+            boolean alreadySelected = indicatorClass != null && indicatorClass.contains("border-emerald-500");
+            if (!alreadySelected) {
+                label.click();
+            }
+        }
+
+        if (quantity > 1) {
+            Locator increaseButton = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Increase quantity"));
+            for (int i = 1; i < quantity; i++) {
+                increaseButton.click();
+            }
+        }
+
+        if (specialInstructions != null) {
+            page.getByPlaceholder("e.g. no mayo/olives").fill(specialInstructions);
+        }
+
+        // Same dual-wait as addItemToCartWithSize(): a repeat add of the same item+options
+        // updates the existing cart line (PUT food-carts) instead of creating a new one
+        // (POST food-cart-items).
+        page.waitForResponse(
+                response -> ("POST".equals(response.request().method()) && response.url().contains("food-cart-items"))
+                        || ("PUT".equals(response.request().method()) && response.url().contains("food-carts")),
+                () -> {
+                    page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Add to Cart")).click();
+                    confirmStartNewOrderIfPrompted();
+                });
+        page.waitForTimeout(500);
+        return this;
+    }
+
+    /**
      * Raw "+" click with no assumption about what happens next - unlike
      * addItemToCart()/addItemToCartWithSize(), which each wait for a specific
      * outcome (a cart network response, a SIZE modal). Use this when the

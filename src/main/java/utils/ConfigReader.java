@@ -134,4 +134,35 @@ public class ConfigReader {
     public static String mqttBrokerUrl() {
         return get("mqtt.broker.url", "");
     }
+
+    /**
+     * Appium server address. Start the server yourself (`appium`) before running
+     * mobile tests - this client does not spawn it.
+     */
+    public static String appiumServerUrl() {
+        return get("appium.server.url", "http://127.0.0.1:4723");
+    }
+
+    /** Must match a connected device's udid/name from `adb devices`. Empty = let Appium pick the only attached device. */
+    public static String androidDeviceName() {
+        return get("android.device.name", "");
+    }
+
+    public static String androidPlatformVersion() {
+        return get("android.platform.version", "");
+    }
+
+    /** Package id of the HopOn app under test, e.g. com.hopon.driver - leave blank to just attach without launching an app. */
+    public static String androidAppPackage() {
+        return get("android.app.package", "");
+    }
+
+    public static String androidAppActivity() {
+        return get("android.app.activity", "");
+    }
+
+    /** Path to an .apk to install before the session starts. Leave blank if the app is already installed on the device. */
+    public static String androidAppPath() {
+        return get("android.app.path", "");
+    }
 }

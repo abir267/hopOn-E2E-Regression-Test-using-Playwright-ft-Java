@@ -2,6 +2,7 @@ package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.AriaRole;
 
 /**
  * "Menu Management" tab (/menu-management) — CONFIRMED against the live site
@@ -24,6 +25,13 @@ public class MenuManagementPage extends AdminBasePage {
 
     public MenuManagementPage(Page page) {
         super(page);
+    }
+
+    /** Opens the "Add Food Item" panel - an in-page state switch, not a separate route. */
+    public AddFoodItemPage openAddFoodItem() {
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Add Food Item")).click();
+        page.waitForTimeout(500);
+        return new AddFoodItemPage(page);
     }
 
     /** Filters the item list down to (ideally) a single matching card. */

@@ -64,6 +64,13 @@ public class RestaurantPortalPage extends AdminBasePage {
         return this;
     }
 
+    /** Opens the "Create New Discount" panel via the "+" icon next to "Manage Discounts" (no text label). */
+    public CreateDiscountPage openCreateDiscount() {
+        page.locator("button:has(lucide-icon[name='plus'])").first().click();
+        page.waitForTimeout(500);
+        return new CreateDiscountPage(page);
+    }
+
     public boolean isSidebarVisible() {
         return isVisible(SIDEBAR);
     }

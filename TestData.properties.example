@@ -47,3 +47,9 @@ mqtt.broker.url=wss://dev-mqtt.hoponbd.com/mqtt
 
 # Reporting
 extent.report.path=target/ExtentReport/index.html
+
+# Mobile (HopOn rider app) - package/activity of the app under test on the
+# connected device. Find via `adb shell pm path <package>` and
+# `adb shell cmd package resolve-activity --brief <package>`.
+android.app.package=com.hoponbd.rider
+android.app.activity=com.hoponbd.rider.MainActivity

@@ -82,6 +82,7 @@ public class BaseRunner {
                 .setSources(true));
 
         page = context.newPage();
+        utils.BugWatcher.attach(page);
     }
 
     @AfterMethod(alwaysRun = true)

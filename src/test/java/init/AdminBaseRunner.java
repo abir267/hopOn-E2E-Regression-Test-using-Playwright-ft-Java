@@ -59,6 +59,7 @@ public class AdminBaseRunner {
                 .setViewportSize(1440, 900));
         context.setDefaultTimeout(ConfigReader.defaultTimeout());
         page = context.newPage();
+        utils.BugWatcher.attach(page);
     }
 
     @AfterMethod(alwaysRun = true)

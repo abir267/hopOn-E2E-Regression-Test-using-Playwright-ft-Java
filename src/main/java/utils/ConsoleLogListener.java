@@ -18,7 +18,9 @@ import java.time.format.DateTimeFormatter;
  *   2. rewrites every line written to System.out/System.err as
  *      "hh:mm:ss AM  <icon> <line>" in colour (ANSI), keyed off the line's [TAG]:
  *      [TEST] blue/green/red, [CUSTOMER]/[RESTAURANT]/[DRIVER]/[RESULT] green,
- *      [LOGIN]/[WARN] yellow, [FAILED] red, [MQTT] magenta.
+ *      [LOGIN]/[WARN] yellow, [FAILED]/[BUG] red, [MQTT] magenta. [BUG] lines come
+ *      from utils.BugWatcher - console errors, uncaught JS exceptions, and failed
+ *      XHR/fetch calls caught live during a test, independent of its assertions.
  * Disable colour with -Dno.color=true (timestamps stay).
  */
 public class ConsoleLogListener implements ITestListener {
@@ -136,7 +138,7 @@ public class ConsoleLogListener implements ITestListener {
         private static String decorate(String t) {
             if (t.startsWith("[TEST] START")) return paint(BLUE, icon("▶", ">") + t);
             if (t.startsWith("[TEST] PASSED")) return paint(GREEN, icon("✔", "+") + t);
-            if (t.startsWith("[TEST] FAILED") || t.startsWith("[FAILED]")) return paint(RED, icon("✖", "x") + t);
+            if (t.startsWith("[TEST] FAILED") || t.startsWith("[FAILED]") || t.startsWith("[BUG]")) return paint(RED, icon("✖", "x") + t);
             if (t.startsWith("[TEST] SKIPPED")) return paint(YELLOW, icon("⚠", "!") + t);
             if (t.startsWith("[LOGIN]") || t.startsWith("[WARN]") || t.startsWith("Retrying")) return paint(YELLOW, icon("⚠", "!") + t);
             if (t.startsWith("[MQTT]")) return paint(MAGENTA, icon("›", "*") + roleBadge(t));
