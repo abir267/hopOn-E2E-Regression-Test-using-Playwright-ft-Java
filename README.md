@@ -74,9 +74,9 @@ mvn "-Dsuite=test-suites/<suite-file>.xml" "-Dexec.mainClass=init.TestRunner" "-
 > in `exec:java` makes Maven misread it as a lifecycle phase and fail with
 > `LifecyclePhaseNotFoundException`.
 
-### The 5 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
+### The 6 main test cases (`src/test/java/WebFunctionalTests/EndToEnd/`)
 
-These five drive the whole system at once — customer web app, restaurant-admin web app and the driver app —
+These six drive the whole system at once — customer web app, restaurant-admin web app and the driver app —
 and are the ones to run first. Each prints every step with a timestamp, plus the real MQTT pushes the customer
 and restaurant web apps receive (see "Reading the terminal output" below).
 
@@ -87,6 +87,7 @@ and restaurant web apps receive (see "Reading the terminal output" below).
 | 3 | `OrderLifecycleChatTest` | customer orders → restaurant Preparing → driver assigned → **customer chats 4 messages** → driver `ok` → restaurant Ready for Pickup → driver `I am coming` → delivered | `test-suites/orderLifecycleChat.xml` |
 | 4 | `RestaurantCancelsFromPreparingAllReasonsTest` | customer orders → restaurant accepts into Preparing → restaurant **cancels**, once per each of the 4 reasons the modal offers (Out of stock / Store is closing / Customer requested / Other) — 4 complete order→accept→cancel cycles in one run | `test-suites/restaurantCancelsFromPreparing.xml` |
 | 5 | `RestaurantAndDriverSeeCustomerInstructionsTest` | customer writes item **Special Instructions** + checkout **Delivery Instructions** → confirms the restaurant sees the Special Instructions (and correctly does NOT see Delivery Instructions, by design) → confirms the driver's API response has both → completes the order | `test-suites/customerInstructions.xml` |
+| 6 | `AdminCreatedRestaurantOrderLifecycleTest` | **admin-created data, not a fixed restaurant.** Runs `admin-portal-automation` first to create a brand-new restaurant + category + food item, reads that exact row back from the shared Google Sheet, then orders from it: restaurant Preparing → driver assigned mid-prep → chat → restaurant Ready → driver delivers. See its own section below — needs one extra one-time setup step. | `test-suites/adminCreatedRestaurantOrderLifecycle.xml` |
 
 ```bash
 mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
@@ -94,7 +95,13 @@ mvn "-Dsuite=test-suites/orderLifecycleDriverInLoop.xml" "-Dexec.mainClass=init.
 mvn "-Dsuite=test-suites/orderLifecycleChat.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/restaurantCancelsFromPreparing.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
 mvn "-Dsuite=test-suites/customerInstructions.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
+mvn clean test "-DsuiteXmlFile=test-suites/adminCreatedRestaurantOrderLifecycle.xml"
 ```
+
+> `AdminCreatedRestaurantOrderLifecycleTest` is run with plain `mvn clean test "-DsuiteXmlFile=..."`
+> (confirmed working), not the `exec:java`/`init.TestRunner` form the other five use — either works for
+> any suite here, this one just documents the command actually used to confirm it end to end. Must be
+> run from the **repo root**, not from inside `admin-portal-automation/` (see its own section below).
 
 `RestaurantCancelsFromPreparingAllReasonsTest` also documents a real backend quirk: the cancel endpoint's response
 always has `status`/`title`/`message` null on success (same as the driver-side cancel `DriverAPI` already notes) —
@@ -119,6 +126,7 @@ OTP is always `1122` (`test.user.otp` in `TestData.properties`). `riderlist.csv`
 | `test-suites/orderLifecycle.xml` | **Full 3-system flow.** Customer places an order on QA Burger Express → restaurant accepts *and* marks it ready → driver runs Accepted → Arrived → PickedUp → Delivered (with photo proof). |
 | `test-suites/orderLifecycleDriverInLoop.xml` | Same full flow, but realistic interleaving: driver accepts and arrives **while the restaurant is still Preparing**, restaurant marks ready *after*, then driver completes pickup + delivery. |
 | `test-suites/orderLifecycleChat.xml` | **Order with customer ↔ driver chat.** Customer orders → restaurant accepts to *Preparing* → driver is assigned → customer sends 4 chat messages (typed + quick reply) in the web UI → driver answers `ok` → restaurant marks *Ready for Pickup* → driver says `I am coming` → driver completes Arrived → PickedUp → Delivered. Each driver reply is asserted to show up in the customer's chat panel. |
+| `test-suites/adminCreatedRestaurantOrderLifecycle.xml` | **Admin-created restaurant, full lifecycle.** Runs `admin-portal-automation` to create a fresh restaurant + category + food item, reads it back from the shared sheet, then orders from it with the same Preparing → driver-mid-prep → chat → Ready → delivered flow, plus Special/Delivery Instructions. See "Admin-created restaurant lifecycle test" below — needs `admin-portal-automation/google-credentials.json` set up once. |
 | `test-suites/validationFlows.xml` | **Negative-path / bug-report suite**, 10 tests — see §4 below for the full list of what each one checks and confirms. |
 | `test-suites/webRestaurant.xml` | Restaurant-admin sidebar smoke test: logs in, walks all 4 tabs (Dashboard/Live Orders/Menu Management/Discount & Promotions). Documents that Dashboard is still placeholder content. |
 | `test-suites/smoke.xml` | Fast customer-only subset: 1 login test + 1 empty-cart check. |
@@ -188,6 +196,96 @@ capturing what the customer web app publishes). Real output:
 With the terminal listener (see "Reading the terminal output") the `[MQTT]` pushes are interleaved too, including
 `[MQTT] <- [CUSTOMER] chat from DRIVER: "ok"`. Customer login numbers are generated as `011` + 8 random digits
 (OTP is always `1122`).
+
+#### Admin-created restaurant lifecycle test (`AdminCreatedRestaurantOrderLifecycleTest`)
+
+Every other test above orders from a fixed, hardcoded restaurant (`QA Burger Express [AA]`). This one instead
+builds its own restaurant from scratch first, then orders from *that*, so the whole chain — admin creates a
+restaurant → adds a category → adds a food item → a customer finds and orders it → the kitchen/driver lifecycle
+completes — is proven end to end in one run, not just the customer/restaurant/driver half of it.
+
+**One-time setup** (separate from everything else in this README): the restaurant-creation half is driven by
+`admin-portal-automation/`, a sibling Maven project in this same repo with its own `pom.xml`. It needs a Google
+service-account key at `admin-portal-automation/google-credentials.json` (gitignored — ask whoever set up that
+module for it; it's not something this test or the admin module can generate). See
+`admin-portal-automation/README.md` for what it's for (a shared Google Sheet used as the "last created
+restaurant" record).
+
+```bash
+mvn clean test "-DsuiteXmlFile=test-suites/adminCreatedRestaurantOrderLifecycle.xml"
+```
+
+What one run actually does, in order:
+
+1. **Admin** — shells out to `admin-portal-automation`'s own `mvn clean test "-DsuiteFile=e2e-testng.xml"`
+   (that module's code is never touched or modified, just run as a separate process) — creates a brand-new
+   restaurant, category and food item, each logged to the shared Google Sheet. Its own `STEP: ...` lines print
+   live through the same timestamped console, with its noisy `SLF4J: Failed to load class...` warning lines
+   filtered out.
+2. Reads that **exact** new row back from the sheet (`utils/AdminPortalSheetReader`) — not just "whatever's
+   last in the sheet", genuinely the row this run just created — and prints it: restaurant name, created time,
+   id, category, food.
+3. Logs into that restaurant's own admin portal (its auto-generated `automatedbotN@gmail.com` credentials, not
+   a shared/global account) and confirms "Accepting Orders" is on.
+4. **Customer**: logs in, sets delivery location, opens the new restaurant, writes a per-item **Special
+   Instructions** note, adds it to cart, writes checkout **Delivery Instructions**, places the order.
+5. **Restaurant** accepts → Preparing. **Driver** accepts + arrives while still Preparing. **Customer ↔ driver
+   chat** (4 customer messages + 2 driver replies — same exchange as `OrderLifecycleChatTest`). **Restaurant**
+   marks Ready. **Driver** picks up and delivers. Both instruction fields are confirmed present in the driver
+   API response.
+
+Real output (admin-creation step trimmed — it's the same `STEP: ...` lines as running
+`admin-portal-automation` directly, see its own README):
+
+```
+[11:20:36 AM] > [TEST] START  AdminCreatedRestaurantOrderLifecycleTest.customerOrdersFromLatestAdminCreatedRestaurant
+[11:20:36 AM] * [ADMIN] Running admin-portal-automation e2e suite (create restaurant -> category -> food)...
+[11:20:45 AM] STEP: Login as admin
+...                                                          (admin-portal-automation's own steps)
+[11:22:20 AM] STEP: Save food to the sheet
+[11:22:22 AM] * [ADMIN] Restaurant: Automated Restaurant 71 (created 02-Nov-2026 11:21:17, id=49b15530-...) | Category: Automated Food Burger 40 | Food: Cheese Automated Burger 35
+[11:22:31 AM] * [ADMIN] Automated Restaurant 71 accepting-orders status: already ON
+[11:22:43 AM] + [CUSTOMER] Logged in as 01166969673
+[11:23:19 AM] + [CUSTOMER] Opened Automated Restaurant 71
+[11:23:30 AM] + [CUSTOMER] Added to cart: Cheese Automated Burger 35 (L)
+[11:23:30 AM] + [CUSTOMER] Special Instructions (food item) written: "No onions please, extra pickles on the side"
+[11:23:31 AM] + [CUSTOMER] Delivery Instructions (checkout page) written: "Please call on arrival, flat 4B - do not ring the bell"
+[11:23:32 AM] + [CUSTOMER] Order placed: #02B-624
+[11:23:39 AM] + [RESTAURANT] Order #02B-624 accepted -> Preparing (pin=8991), no driver assigned yet
+[11:23:39 AM] + [DRIVER] Order #02B-624 -> Accepted (restaurant still Preparing)
+[11:23:40 AM] + [DRIVER] Order #02B-624 -> Arrived at restaurant (still Preparing, waiting)
+[11:23:41 AM] + [CUSTOMER] Opened chat with rider
+[11:23:42 AM] + [CUSTOMER] Chat sent: "Hi, how long will it take?"
+[11:23:42 AM] + [CUSTOMER] Chat sent (quick reply): "Wait for few minutes"
+[11:23:43 AM] + [CUSTOMER] Chat sent: "Please bring extra napkins"
+[11:23:44 AM] + [CUSTOMER] Chat sent: "Thank you!"
+[11:23:44 AM] + [DRIVER] Chat sent: "ok"
+[11:23:44 AM] + [CUSTOMER] Chat received from driver: "ok"
+[11:23:47 AM] + [RESTAURANT] Order #02B-624 -> ReadyForPickup
+[11:23:47 AM] + [DRIVER] Chat sent: "I am coming"
+[11:23:47 AM] + [CUSTOMER] Chat received from driver: "I am coming"
+[11:23:47 AM] + [DRIVER] Order #02B-624 -> PickedUp, heading to customer
+[11:23:47 AM] + [DRIVER] Order #02B-624 -> Delivered (photo proof uploaded)
+[11:23:47 AM] + [DRIVER] Special Instructions + Delivery Instructions both confirmed in the driver API response
+[11:23:48 AM] + [RESULT] SUCCESS: Automated Restaurant 71 (Cheese Automated Burger 35) - admin -> customer (chat, Special/Delivery Instructions) -> restaurant (Preparing -> Ready) -> driver (Accepted -> Arrived -> PickedUp -> Delivered).
+[11:23:48 AM] + [TEST] PASSED AdminCreatedRestaurantOrderLifecycleTest.customerOrdersFromLatestAdminCreatedRestaurant (192.1s)
+```
+
+A full run takes **~3 minutes** (the admin-creation subprocess alone is ~1.5-2 min — document uploads, map
+interactions) — much longer than the other five, hence its own 2-retry cap instead of the usual 4 (see §7).
+
+Two things CONFIRMED live and worth knowing if this ever needs touching again:
+- **Delivery location is hardcoded to Gulshan 1** (`GULSHAN_1_LATITUDE`/`LONGITUDE` in the test, not
+  `ConfigReader.deliveryLatitude()/Longitude()`) — every restaurant `admin-portal-automation` creates gets its
+  delivery area drawn around *that module's own* `geo.latitude`/`geo.longitude` (also Gulshan 1), not this
+  project's generic default. Ordering from the generic default (~2.1km away) returns the restaurant as
+  genuinely unavailable (`"available":false` in the detail API, "CLOSED" badge, every item's "+" permanently
+  disabled) — confirmed via network capture, nothing to do with hours or the "Accepting Orders" toggle (both
+  were already on).
+- The site has a live, reproducible bug where a modal's backdrop (location picker, or the item "Choose
+  options" modal) can get stuck mid fade-out and keep intercepting clicks underneath it. The test waits for it
+  to clear and, failing that, disables its pointer-events (never removes the DOM node — that broke Angular's
+  own rendering when tried) rather than treating it as a hard failure.
 
 ### Alternative ways to run (same tests, different entrypoints)
 
@@ -359,6 +457,11 @@ not a real bug. Every `@Test` in `EndToEnd` / `CustomerJourney` /
 phone each attempt), so this self-heals without you re-running anything — a
 `Retrying '...'` line in the output is normal, not a failure.
 
+**Exception:** `AdminCreatedRestaurantOrderLifecycleTest` uses its own `TwoRetryAnalyzer` (2 retries, not 4) —
+each retry re-runs the ~2-minute `admin-portal-automation` creation subprocess from scratch, so 4 attempts would
+be an unreasonably long worst case. It also chases the same live modal-backdrop bug noted in its own section
+above; a `Retrying '...' (attempt N/2)` there is normal for the same reason.
+
 ## 8. Recording real locators (Playwright Codegen)
 
 For any screen not yet covered:
@@ -399,21 +502,24 @@ hopon-food-automation/
 │   │       ├── RestaurantPortalPage.java     # sidebar nav
 │   │       ├── LiveOrdersPage.java        # New/Preparing/Ready tabs, accept, ready, extend prep, cancel, pickup PIN
 │   │       └── MenuManagementPage.java    # item availability (Available/Not Available) toggle
-│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, ConsoleLogListener, MqttConsoleCapture, GSheetUpdate (STUB), MqttListener (CONFIRMED)
+│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, ConsoleLogListener, MqttConsoleCapture, GSheetUpdate (STUB), MqttListener (CONFIRMED), AdminPortalSheetReader (reads admin-portal-automation's sheet)
 ├── src/test/java/
 │   ├── WebFunctionalTests/
 │   │   ├── AuthTests/                     # customer login
 │   │   ├── CustomerJourney/               # customer search -> order
 │   │   ├── AdminPortal/                   # restaurant-admin sidebar smoke test
-│   │   ├── EndToEnd/                      # the 5 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat, RestaurantCancelsFromPreparingAllReasons, RestaurantAndDriverSeeCustomerInstructions (see §3)
+│   │   ├── EndToEnd/                      # the 6 main tests: OrderLifecycle, OrderLifecycleDriverInLoop, OrderLifecycleChat, RestaurantCancelsFromPreparingAllReasons, RestaurantAndDriverSeeCustomerInstructions, AdminCreatedRestaurantOrderLifecycle (see §3)
 │   │   └── ValidationFlows/               # negative-path / bug-report suite, 10 tests (see §4)
 │   ├── APITests/
 │   │   ├── AuthApiTest.java               # disabled until AuthAPI is wired up
 │   │   └── DriverCalling.java             # standalone script: call DriverAPI directly, no TestNG
 │   └── init/                              # BaseRunner / AdminBaseRunner (Playwright lifecycle), TestRunner
 ├── test-scripts/                          # startup-local.sh, startup-jenkins.sh, startup-docker.sh
-├── test-suites/                           # testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop), validationFlows
+├── test-suites/                           # testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop+Chat), adminCreatedRestaurantOrderLifecycle, validationFlows
 ├── TestData.properties(.example)          # all base URLs, creds, driver token - gitignored
+├── admin-portal-automation/                # SEPARATE Maven project (own pom.xml) - creates a restaurant+category+food
+│                                            # via the superadmin portal; AdminCreatedRestaurantOrderLifecycleTest shells
+│                                            # out to it and reads its shared Google Sheet back (see its own README.md)
 └── pom.xml
 ```
 

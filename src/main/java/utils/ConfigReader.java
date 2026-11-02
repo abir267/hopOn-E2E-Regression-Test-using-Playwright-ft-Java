@@ -165,4 +165,22 @@ public class ConfigReader {
     public static String androidAppPath() {
         return get("android.app.path", "");
     }
+
+    /**
+     * Same "HopOn Food- Automation data" sheet the admin-portal-automation module writes to
+     * (see utils.AdminPortalSheetReader) - defaults match that module's own config.properties
+     * so this works out of the box without touching TestData.properties.
+     */
+    public static String googleSheetId() {
+        return get("google.sheet.id", "1_CMkWrKqqEtaeZPHJmqKXE0Rc9XSk4DnRzj3lPUGihA");
+    }
+
+    public static String googleSheetCredentialsTab() {
+        return get("google.sheet.credentials.tab", "Credentials");
+    }
+
+    /** Service-account key for the sheet above - gitignored, lives in the admin-portal-automation module by default. */
+    public static String googleCredentialsPath() {
+        return get("google.credentials.path", "admin-portal-automation/google-credentials.json");
+    }
 }

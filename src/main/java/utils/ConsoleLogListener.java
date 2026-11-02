@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter;
  *   2. rewrites every line written to System.out/System.err as
  *      "hh:mm:ss AM  <icon> <line>" in colour (ANSI), keyed off the line's [TAG]:
  *      [TEST] blue/green/red, [CUSTOMER]/[RESTAURANT]/[DRIVER]/[RESULT] green,
- *      [LOGIN]/[WARN] yellow, [FAILED]/[BUG] red, [MQTT] magenta. [BUG] lines come
+ *      [LOGIN]/[WARN] yellow, [FAILED]/[BUG]/[ADMIN] red, [MQTT] magenta. [BUG] lines come
  *      from utils.BugWatcher - console errors, uncaught JS exceptions, and failed
  *      XHR/fetch calls caught live during a test, independent of its assertions.
  * Disable colour with -Dno.color=true (timestamps stay).
@@ -142,6 +142,7 @@ public class ConsoleLogListener implements ITestListener {
             if (t.startsWith("[TEST] SKIPPED")) return paint(YELLOW, icon("⚠", "!") + t);
             if (t.startsWith("[LOGIN]") || t.startsWith("[WARN]") || t.startsWith("Retrying")) return paint(YELLOW, icon("⚠", "!") + t);
             if (t.startsWith("[MQTT]")) return paint(MAGENTA, icon("›", "*") + roleBadge(t));
+            if (t.startsWith("[ADMIN]")) return paint(RED, icon("●", "*") + t);
             if (t.startsWith("[CUSTOMER]") || t.startsWith("[RESTAURANT]") || t.startsWith("[DRIVER]")
                     || t.startsWith("[RESULT]") || t.startsWith("[STEP]") || t.startsWith("[CLEANUP]")
                     || t.startsWith("[EVIDENCE]")) return paint(GREEN, icon("✔", "+") + t);

@@ -248,6 +248,29 @@ public class RestaurantMenuPage extends BasePage {
         return this;
     }
 
+    /**
+     * Clicks a menu category tab by its exact visible name. Unlike ensureItemVisible()'s
+     * KNOWN_CATEGORY_TAB_NAMES (hardcoded for one fixed restaurant), this is for restaurants
+     * whose category name is only known at runtime - e.g. one admin-portal-automation just
+     * created (see AdminCreatedRestaurantOrderLifecycleTest). Swallows a missing tab: a
+     * brand-new restaurant's one-and-only category may already be the active/default tab.
+     *
+     * CONFIRMED live (2026-11-02): a brand-new restaurant's item list can still be mid
+     * enter-transition after this - Playwright's own actionability check passes (no layout
+     * shift to detect) but the list's wrapper div still intercepts the "+" click underneath
+     * for a while. 600ms wasn't enough; give it longer.
+     */
+    public RestaurantMenuPage openCategoryTab(String categoryName) {
+        try {
+            page.getByText(categoryName, new Page.GetByTextOptions().setExact(true)).first()
+                    .click(new Locator.ClickOptions().setTimeout(5000));
+            page.waitForTimeout(2500);
+        } catch (PlaywrightException notFound) {
+            // Already on the only/active tab - nothing to switch.
+        }
+        return this;
+    }
+
     public boolean isRestaurantUnavailable() {
         return page.getByText(UNAVAILABLE_MODAL_TEXT).isVisible();
     }

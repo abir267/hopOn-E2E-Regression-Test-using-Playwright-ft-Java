@@ -56,4 +56,33 @@ public class CartPage extends BasePage {
         page.waitForLoadState();
         return new CheckoutPage(page);
     }
+
+    private static final String NO_OFFERS_TEXT = "No offers available for this order";
+    private static final String APPLY_COUPON_TOGGLE = "APPLY COUPON";
+
+    /**
+     * Read-only: expands the "APPLY COUPON" panel if it's collapsed, reports whether a coupon
+     * is already applied or any offer is available, then leaves it alone - never types a promo
+     * code or clicks an offer/Apply itself (no confirmed code/offer to apply against, and
+     * guessing at that interaction risks corrupting the order total). See
+     * AdminCreatedRestaurantOrderLifecycleTest for the caller.
+     */
+    public String couponStatus() {
+        boolean alreadyExpanded = page.getByPlaceholder("ENTER PROMO CODE").isVisible()
+                || sidebar().getByText(NO_OFFERS_TEXT).isVisible();
+        if (!alreadyExpanded) {
+            Locator toggle = page.locator(":visible").filter(new Locator.FilterOptions().setHasText(APPLY_COUPON_TOGGLE)).first();
+            if (toggle.count() > 0) {
+                toggle.click();
+                page.waitForTimeout(500);
+            }
+        }
+        if (sidebar().getByText(NO_OFFERS_TEXT).isVisible()) {
+            return "no coupon applied (no offers available for this order)";
+        }
+        if (page.getByPlaceholder("ENTER PROMO CODE").isVisible()) {
+            return "coupon panel open, no offer text found (promo code field empty/untouched)";
+        }
+        return "could not determine coupon panel state";
+    }
 }

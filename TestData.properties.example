@@ -53,3 +53,13 @@ extent.report.path=target/ExtentReport/index.html
 # `adb shell cmd package resolve-activity --brief <package>`.
 android.app.package=com.hoponbd.rider
 android.app.activity=com.hoponbd.rider.MainActivity
+
+# Read-only lookup into the SAME "HopOn Food- Automation data" Google Sheet that
+# admin-portal-automation (a separate Maven module in this repo) writes to when it
+# creates a restaurant + category + food item - see
+# WebFunctionalTests/EndToEnd/AdminCreatedRestaurantOrderLifecycleTest.java. All
+# three already default to that module's values, so these only need overriding if
+# that module's own config.properties changes.
+google.sheet.id=1_CMkWrKqqEtaeZPHJmqKXE0Rc9XSk4DnRzj3lPUGihA
+google.sheet.credentials.tab=Credentials
+google.credentials.path=admin-portal-automation/google-credentials.json

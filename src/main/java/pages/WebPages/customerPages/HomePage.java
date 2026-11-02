@@ -1,5 +1,6 @@
 package pages.WebPages.customerPages;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.LoadState;
@@ -45,19 +46,31 @@ public class HomePage extends BasePage {
     }
 
     /**
-     * Opens the "Change Delivery Location" modal and picks "Use my current location"
-     * (the browser geolocation BaseRunner pins to delivery.latitude/longitude).
-     * This is the only reliable way to land inside a restaurant's delivery radius —
-     * see the class javadoc and BaseRunner.
+     * Opens the "Change Delivery Location" modal and picks the browser's current geolocation
+     * (BaseRunner pins it to delivery.latitude/longitude). This is the only reliable way to
+     * land inside a restaurant's delivery radius - see the class javadoc and BaseRunner.
+     *
+     * CONFIRMED live (2026-11-02, DOM probe): this is a TWO-click flow, not one -
+     *   1. button[title='Use Current Location'] (icon only, no visible/accessible text -
+     *      "Use my current location" never matched anything here, a stale selector from an
+     *      earlier UI) triggers reverse geocoding and fills the address input.
+     *   2. Once that resolves, a SEPARATE button[title='Set Location'] (green, arrow icon)
+     *      appears and must be clicked to actually confirm/close the modal.
+     * Every "stuck backdrop" symptom chased before this (waiting longer, removing the node,
+     * disabling its pointer-events) was really just this: step 2 never ran, so the modal
+     * never legitimately finished.
      */
     public HomePage setDeliveryLocationToCurrentLocation() {
         click(CURRENT_ADDRESS_LABEL);
+        page.locator("button[title='Use Current Location']").click();
+        // Reverse geocoding - the confirm button doesn't exist until the address resolves.
+        page.locator("button[title='Set Location']").waitFor(new Locator.WaitForOptions().setTimeout(10000));
         // Picking a location auto-closes this modal, which can race a plain click()
         // into retrying against an already-removed button - see clickAllowingSelfRemoval.
         clickAllowingSelfRemoval(
-                page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Use my current location")),
+                page.locator("button[title='Set Location']"),
                 () -> !page.getByText("Change Delivery Location").isVisible());
-        page.waitForTimeout(1500); // reverse-geocoding + restaurant list refetch, no loading indicator to await
+        page.waitForTimeout(1500); // restaurant list refetch, no loading indicator to await
         return this;
     }
 
@@ -111,6 +124,22 @@ public class HomePage extends BasePage {
         // right away (RestaurantMenuPage.restaurantTitle()) can otherwise race a stale
         // or empty render.
         page.waitForLoadState(LoadState.NETWORKIDLE);
+    }
+
+    /**
+     * Clicks the header "Restaurants" nav link (CONFIRMED route /restaurants, live DOM probe
+     * 2026-11-01). searchFor()'s #site-search input is the SAME shared header component on
+     * every route, but its result cards are only confirmed to render into the "Open
+     * Restaurants Around You" grid on THIS route - on the plain "/" home route a search can
+     * return zero visible result cards even for a real match. Call this before searchFor()
+     * when the caller needs to actually see/click a result card (see
+     * AdminCreatedRestaurantOrderLifecycleTest); not needed if only the search request
+     * itself matters.
+     */
+    public HomePage openRestaurantsTab() {
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Restaurants")).first().click();
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        return this;
     }
 
     public int searchResultCount() {
