@@ -54,12 +54,12 @@ import java.util.List;
  * Same interleaving as OrderLifecycleDriverInLoopTest (driver accepts mid-prep, not
  * after - CONFIRMED the realistic ordering, see that class's javadoc).
  *
- * Search note: HomePage.searchFor()'s box is CONFIRMED to search DISH names, not
- * restaurant names (see its javadoc) - searching the restaurant's own name here would
- * reliably return zero results. So this searches by the food item's name (which the
- * box actually matches) and then picks the right restaurant card off those results by
- * its full name via HomePage.openRestaurantByName() - still "search bar then land on
- * that restaurant by its full name", just through the one search path that's real.
+ * Search note: the customer finds this restaurant by its full name through the real search box
+ * on the "/restaurants" listing page (HomePage.searchRestaurantsByName(), #search-input) -
+ * CONFIRMED live (2026-11-02) that one genuinely filters by restaurant name (unlike the
+ * shared-header searchFor() box, which only matches dish names - see its own javadoc; an
+ * earlier version of this test searched by food name through THAT box instead, to work around
+ * the wrong assumption that no restaurant-name search existed at all).
  *
  * Three independent systems (customer web app, restaurant-admin web app, driver-app
  * backend API) plus the admin-portal-automation process, so - like its siblings - this
@@ -294,20 +294,18 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
     }
 
     /**
-     * CONFIRMED live (2026-11-01): the "Restaurants" tab click / search box click this would
-     * do can still fail even after waiting for AND disabling the stuck location-modal
-     * backdrop - a live site bug upstream of anything this test controls. Never let that
-     * block order placement, which doesn't need it (see call site) - just log the outcome.
+     * CONFIRMED live (2026-11-02, DOM probe): "/restaurants" has its OWN search box
+     * (HomePage.searchRestaurantsByName(), #search-input) that genuinely filters by restaurant
+     * name - typing the restaurant's exact name narrows the grid to "Showing 1 places", that
+     * exact restaurant. This is the real path (not a cosmetic/best-effort one, and not the id-
+     * based shortcut this test used before) - a real user finding this restaurant would use
+     * this same search box, by name, same as the instruction behind this test.
      */
-    private void tryShowSearchBar(HomePage home, String foodName) {
-        try {
-            home.openRestaurantsTab();
-            home.searchFor(foodName);
-            System.out.println("[CUSTOMER] On Restaurants tab, searched \"" + foodName + "\" (" + home.searchResultCount() + " result(s))");
-        } catch (PlaywrightException searchBarUnavailable) {
-            System.out.println("[CUSTOMER] Search bar step skipped (live site issue, non-fatal): "
-                    + searchBarUnavailable.getClass().getSimpleName());
-        }
+    private void openRestaurantViaSearch(HomePage home, String restaurantName) {
+        home.openRestaurantsTab();
+        home.searchRestaurantsByName(restaurantName);
+        System.out.println("[CUSTOMER] On Restaurants tab, searched \"" + restaurantName + "\"");
+        home.openRestaurantFromSearchResults(restaurantName);
     }
 
     /**
@@ -356,17 +354,8 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
 
         home.setDeliveryLocationToCurrentLocation();
         waitForModalOverlayToClear(page, "div.fixed.inset-0", "Location modal");
-        // Best-effort only: show the search bar being used (see class javadoc - the box
-        // only matches dish names, and a freshly created item isn't always searchable yet
-        // anyway). CONFIRMED live (2026-11-01) the location modal's backdrop can get stuck
-        // in a way that keeps blocking this click no matter how it's worked around (plain
-        // wait, removing the node, disabling its pointer-events - all three tried, all three
-        // still hit it) - a live Angular bug outside this test's control. The ACTUAL
-        // navigation never depended on this succeeding: it already goes through the id this
-        // test has straight from the sheet, same confirmed-reliable path OrderLifecycleTest
-        // uses. So this step must never fail the run - only log whether it worked.
-        tryShowSearchBar(home, restaurant.food());
-        home.openRestaurantById(ConfigReader.baseUrl(), restaurant.restaurantId());
+        // Real search, not an id shortcut - see openRestaurantViaSearch()'s javadoc.
+        openRestaurantViaSearch(home, restaurant.name());
         System.out.println("[CUSTOMER] Opened " + restaurant.name());
 
         RestaurantMenuPage menuPage = new RestaurantMenuPage(page);

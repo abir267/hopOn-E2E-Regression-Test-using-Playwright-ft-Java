@@ -32,9 +32,21 @@ public class HomePage extends BasePage {
     private static final String CURRENT_ADDRESS_LABEL = "#app-current-address";
     private static final String SEARCH_INPUT = "input[placeholder*='Search for restaurants']";
     private static final String RESULT_CARD = "hopon-food-search-result-card";
-    // CONFIRMED changed from "Log In" to "Login" (no space) 2026-10-17; the login modal's own
-    // submit button is a different element and is still "Log In" with a space - see LoginPage.
-    private static final String HEADER_LOGIN_LINK_NAME = "Login";
+    // CONFIRMED live (2026-11-02): a DIFFERENT element from SEARCH_INPUT above - that one lives in
+    // the shared header and is dish-only (see searchFor()'s javadoc); this one is the "/restaurants"
+    // listing page's OWN search box and genuinely filters its "Open Restaurants Around You" grid by
+    // restaurant name (confirmed: typing a restaurant's exact name there narrows it to "Showing 1
+    // places"). Its cards are a different custom element too - NEARBY_RESTAURANT_CARD, not RESULT_CARD.
+    private static final String RESTAURANTS_PAGE_SEARCH_INPUT = "#search-input";
+    private static final String NEARBY_RESTAURANT_CARD = "hopon-food-nearby-restaurant-card";
+    // CONFIRMED live (2026-11-02): switched from matching the link's visible text ("Login") to its
+    // href - that text already broke this once before (was "Log In" with a space until
+    // 2026-10-17, a pure copy change with no route change), exactly the class of fragility a
+    // structural attribute avoids. ":visible" picks the real header link over the hidden
+    // mobile-menu duplicate confirmed sharing the same href (both exist in the DOM at once).
+    // The login MODAL's own submit button is a different element, still "Log In" with a space -
+    // see LoginPage, that one has no href to match against so stays text-based.
+    private static final String HEADER_LOGIN_LINK_SELECTOR = "a[href='/login']:visible";
 
     public HomePage(Page page) {
         super(page);
@@ -127,19 +139,44 @@ public class HomePage extends BasePage {
     }
 
     /**
-     * Clicks the header "Restaurants" nav link (CONFIRMED route /restaurants, live DOM probe
-     * 2026-11-01). searchFor()'s #site-search input is the SAME shared header component on
-     * every route, but its result cards are only confirmed to render into the "Open
-     * Restaurants Around You" grid on THIS route - on the plain "/" home route a search can
-     * return zero visible result cards even for a real match. Call this before searchFor()
-     * when the caller needs to actually see/click a result card (see
-     * AdminCreatedRestaurantOrderLifecycleTest); not needed if only the search request
-     * itself matters.
+     * Clicks the header "Restaurants" nav link - its own listing page with a dedicated search
+     * box, see searchRestaurantsByName()/openRestaurantFromSearchResults() below. Call this
+     * first when searching by restaurant name (see AdminCreatedRestaurantOrderLifecycleTest).
+     *
+     * CONFIRMED live (2026-11-02): matched by its href (a[href='/restaurants']), not its visible
+     * text - the route is a stable implementation detail, the label text ("Restaurants") is
+     * cosmetic copy that a redesign could rename without changing the route at all. Same class of
+     * bug this whole test chased twice already (the location button's "Use my current location"
+     * text going stale, the restaurant-name search assumption) - prefer a structural attribute
+     * over display text wherever the frontend actually exposes one.
      */
     public HomePage openRestaurantsTab() {
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Restaurants")).first().click();
+        page.locator("a[href='/restaurants']").first().click();
         page.waitForLoadState(LoadState.NETWORKIDLE);
         return this;
+    }
+
+    /**
+     * CONFIRMED live (2026-11-02): types into the "/restaurants" listing page's own search box
+     * (#search-input), which genuinely filters its restaurant grid by name - unlike searchFor()'s
+     * header box, which only matches dish names (see its javadoc). Call openRestaurantsTab() first.
+     */
+    public HomePage searchRestaurantsByName(String restaurantName) {
+        Locator input = page.locator(RESTAURANTS_PAGE_SEARCH_INPUT);
+        input.click();
+        input.fill(restaurantName);
+        page.waitForTimeout(1500);
+        return this;
+    }
+
+    /**
+     * Clicks the matching card out of the "/restaurants" grid (see searchRestaurantsByName()) by
+     * its exact name - CONFIRMED live: lands on that restaurant's own menu page.
+     */
+    public void openRestaurantFromSearchResults(String restaurantName) {
+        page.locator(NEARBY_RESTAURANT_CARD).filter(new Locator.FilterOptions().setHasText(restaurantName))
+                .first().click();
+        page.waitForLoadState(LoadState.NETWORKIDLE);
     }
 
     public int searchResultCount() {
@@ -161,7 +198,7 @@ public class HomePage extends BasePage {
      */
     public void openLogin() {
         waitForStartupRequestsToSettle();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(HEADER_LOGIN_LINK_NAME)).first().click();
+        page.locator(HEADER_LOGIN_LINK_SELECTOR).first().click();
         page.waitForTimeout(1000);
     }
 
@@ -183,6 +220,6 @@ public class HomePage extends BasePage {
     }
 
     public boolean isLoggedIn() {
-        return !page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(HEADER_LOGIN_LINK_NAME)).first().isVisible();
+        return !page.locator(HEADER_LOGIN_LINK_SELECTOR).first().isVisible();
     }
 }
