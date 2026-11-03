@@ -32,6 +32,14 @@ public class RestaurantMenuPage extends BasePage {
     private static final String UNAVAILABLE_MODAL_TEXT = "Restaurant is unavailable";
     private static final String START_NEW_ORDER_MODAL_TEXT = "Start a New Order?";
     private static final String START_NEW_ORDER_CONFIRM_BUTTON = "Yes, Start New Order";
+    // CONFIRMED live (2026-11-03): this restaurant page's OWN search box - no id, so matched by
+    // placeholder same as HomePage's own search inputs (CONFIRMED there is no better structural
+    // attribute). Different element from HomePage.SEARCH_INPUT (placeholder "Search for
+    // restaurants...", global header, dish-only, see its javadoc) - this one filters THIS
+    // restaurant's own menu by item name, and does so across every category tab at once, not
+    // just the currently active one (CONFIRMED: searching an item that only exists on a tab that
+    // was never clicked still found it - unlike ensureItemVisible()'s tab-click fallback above).
+    private static final String MENU_SEARCH_INPUT = "input[placeholder*='Search for dishes']";
 
     public RestaurantMenuPage(Page page) {
         super(page);
@@ -268,6 +276,19 @@ public class RestaurantMenuPage extends BasePage {
         } catch (PlaywrightException notFound) {
             // Already on the only/active tab - nothing to switch.
         }
+        return this;
+    }
+
+    /**
+     * Types into this restaurant's own menu search box (see MENU_SEARCH_INPUT's javadoc) -
+     * narrows the item list to matches by name, same real path a customer would use to find a
+     * specific dish on a restaurant's page instead of scrolling/switching category tabs.
+     */
+    public RestaurantMenuPage searchMenuByName(String itemName) {
+        Locator input = page.locator(MENU_SEARCH_INPUT);
+        input.click();
+        input.fill(itemName);
+        page.waitForTimeout(1200);
         return this;
     }
 

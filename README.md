@@ -87,7 +87,7 @@ and restaurant web apps receive (see "Reading the terminal output" below).
 | 3 | `OrderLifecycleChatTest` | customer orders → restaurant Preparing → driver assigned → **customer chats 4 messages** → driver `ok` → restaurant Ready for Pickup → driver `I am coming` → delivered | `test-suites/orderLifecycleChat.xml` |
 | 4 | `RestaurantCancelsFromPreparingAllReasonsTest` | customer orders → restaurant accepts into Preparing → restaurant **cancels**, once per each of the 4 reasons the modal offers (Out of stock / Store is closing / Customer requested / Other) — 4 complete order→accept→cancel cycles in one run | `test-suites/restaurantCancelsFromPreparing.xml` |
 | 5 | `RestaurantAndDriverSeeCustomerInstructionsTest` | customer writes item **Special Instructions** + checkout **Delivery Instructions** → confirms the restaurant sees the Special Instructions (and correctly does NOT see Delivery Instructions, by design) → confirms the driver's API response has both → completes the order | `test-suites/customerInstructions.xml` |
-| 6 | `AdminCreatedRestaurantOrderLifecycleTest` | **admin-created data, not a fixed restaurant.** Runs `admin-portal-automation` first to create a brand-new restaurant + category + food item, reads that exact row back from the shared Google Sheet, then orders from it: restaurant Preparing → driver assigned mid-prep → chat → restaurant Ready → driver delivers. See its own section below — needs one extra one-time setup step. | `test-suites/adminCreatedRestaurantOrderLifecycle.xml` |
+| 6 | `AdminCreatedRestaurantOrderLifecycleTest` | **admin-created data, not a fixed restaurant.** Runs `admin-portal-automation` first to create a brand-new restaurant + category + food item, reads that exact result back from a local handoff file it just wrote, then orders from it: restaurant Preparing → driver assigned mid-prep → chat → restaurant Ready → driver delivers. See its own section below — needs one extra one-time setup step. | `test-suites/adminCreatedRestaurantOrderLifecycle.xml` |
 
 ```bash
 mvn "-Dsuite=test-suites/orderLifecycle.xml" "-Dexec.mainClass=init.TestRunner" "-Dexec.classpathScope=test" exec:java
@@ -218,13 +218,14 @@ mvn clean test "-DsuiteXmlFile=test-suites/adminCreatedRestaurantOrderLifecycle.
 What one run actually does, in order:
 
 1. **Admin** — shells out to `admin-portal-automation`'s own `mvn clean test "-DsuiteFile=e2e-testng.xml"`
-   (that module's code is never touched or modified, just run as a separate process) — creates a brand-new
-   restaurant, category and food item, each logged to the shared Google Sheet. Its own `STEP: ...` lines print
-   live through the same timestamped console, with its noisy `SLF4J: Failed to load class...` warning lines
-   filtered out.
-2. Reads that **exact** new row back from the sheet (`utils/AdminPortalSheetReader`) — not just "whatever's
-   last in the sheet", genuinely the row this run just created — and prints it: restaurant name, created time,
-   id, category, food.
+   as a separate process — creates a brand-new restaurant, category and food item, each still logged to the
+   shared Google Sheet exactly as that module always did. Its own `STEP: ...` lines print live through the
+   same timestamped console, with its noisy `SLF4J: Failed to load class...` warning lines filtered out.
+   `CreateFoodTest.java` (the one point where name/email/password/id/category/food are all in scope together)
+   also saves them to `admin-portal-automation/target/last-created-restaurant.properties` the moment it's done
+   — one small addition there, no existing behaviour changed.
+2. Reads that file back (`utils/AdminCreatedRestaurant`) as a plain Java object — not the sheet, and not by
+   parsing the subprocess's console text either — and prints it: restaurant name, id, category, food.
 3. Logs into that restaurant's own admin portal (its auto-generated `automatedbotN@gmail.com` credentials, not
    a shared/global account) and confirms "Accepting Orders" is on.
 4. **Customer**: logs in, sets delivery location, opens the new restaurant, writes a per-item **Special
@@ -243,7 +244,7 @@ Real output (admin-creation step trimmed — it's the same `STEP: ...` lines as 
 [11:20:45 AM] STEP: Login as admin
 ...                                                          (admin-portal-automation's own steps)
 [11:22:20 AM] STEP: Save food to the sheet
-[11:22:22 AM] * [ADMIN] Restaurant: Automated Restaurant 71 (created 02-Nov-2026 11:21:17, id=49b15530-...) | Category: Automated Food Burger 40 | Food: Cheese Automated Burger 35
+[11:22:22 AM] * [ADMIN] Restaurant: Automated Restaurant 71 (id=49b15530-...) | Category: Automated Food Burger 40 | Food: Cheese Automated Burger 35
 [11:22:31 AM] * [ADMIN] Automated Restaurant 71 accepting-orders status: already ON
 [11:22:43 AM] + [CUSTOMER] Logged in as 01166969673
 [11:23:19 AM] + [CUSTOMER] Opened Automated Restaurant 71
@@ -502,7 +503,7 @@ hopon-food-automation/
 │   │       ├── RestaurantPortalPage.java     # sidebar nav
 │   │       ├── LiveOrdersPage.java        # New/Preparing/Ready tabs, accept, ready, extend prep, cancel, pickup PIN
 │   │       └── MenuManagementPage.java    # item availability (Available/Not Available) toggle
-│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, ConsoleLogListener, MqttConsoleCapture, GSheetUpdate (STUB), MqttListener (CONFIRMED), AdminPortalSheetReader (reads admin-portal-automation's sheet)
+│   └── utils/                             # ConfigReader, TestDataGenerator, RetryAnalyzer, ConsoleLogListener, MqttConsoleCapture, GSheetUpdate (STUB), MqttListener (CONFIRMED), AdminCreatedRestaurant (reads admin-portal-automation's local handoff file)
 ├── src/test/java/
 │   ├── WebFunctionalTests/
 │   │   ├── AuthTests/                     # customer login
@@ -518,8 +519,10 @@ hopon-food-automation/
 ├── test-suites/                           # testng, smoke, webRestaurant, orderLifecycle(+DriverInLoop+Chat), adminCreatedRestaurantOrderLifecycle, validationFlows
 ├── TestData.properties(.example)          # all base URLs, creds, driver token - gitignored
 ├── admin-portal-automation/                # SEPARATE Maven project (own pom.xml) - creates a restaurant+category+food
-│                                            # via the superadmin portal; AdminCreatedRestaurantOrderLifecycleTest shells
-│                                            # out to it and reads its shared Google Sheet back (see its own README.md)
+│                                            # via the superadmin portal (still logs to its own shared Google Sheet, see
+│                                            # its own README.md); AdminCreatedRestaurantOrderLifecycleTest shells out to
+│                                            # it and reads back the local target/last-created-restaurant.properties file
+│                                            # CreateFoodTest.java also writes, instead of that sheet
 └── pom.xml
 ```
 

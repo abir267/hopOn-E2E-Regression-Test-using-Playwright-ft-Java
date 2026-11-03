@@ -13,25 +13,33 @@ import com.microsoft.playwright.Page;
  * guard, not a real page), so this panel must always be read/acted on from
  * whichever page it's currently rendered on.
  *
- * IMPORTANT (CONFIRMED via a full ancestor-chain dump, 2026-09-16): the
- * `<hopon-food-cart-sidebar>` tag is NOT the desktop basket panel a user sees
- * and clicks - it's a second, permanently `display:none` copy nested inside
- * `<hopon-food-header>` (a mobile-drawer variant of the same cart, mirroring
- * the same underlying data). The real, visible basket panel on the restaurant
- * page is a different element entirely. Both copies render identical text
- * content, which is why count()-based presence checks below (isEmpty(),
- * containsItem()) happen to read correctly regardless of which copy they hit -
- * but proceedToCheckout() needs a real click, which only works against the
- * genuinely visible one, so it filters by ":visible" instead of trusting any
- * specific tag.
+ * CORRECTED (2026-11-03, live DOM probe - the site now genuinely has TWO separate cart
+ * surfaces, confirmed by dumping both independently):
+ *   - `<hopon-food-cart>` - the in-page "YOUR BASKET" panel on the restaurant's own menu page
+ *     (desktop-width only, `hidden lg:block`). This is the one with real item-level detail
+ *     (name, add-ons, price, qty stepper) - CONFIRMED its empty state now reads "Your cart is
+ *     empty" (changed from "Your delivery basket is empty"). isEmpty()/containsItem()/
+ *     couponStatus() below read THIS one.
+ *   - `<hopon-food-cart-sidebar>` - a newer "All carts" slide-over overlay (class `cs-panel
+ *     cs-open` when open), restaurant-level summary only (name, price, a generic "Add" stepper)
+ *     - no item name text anywhere in it, CONFIRMED by dumping its full innerText. A 2026-09-16
+ *     probe found this tag permanently `display:none` (a hidden mobile-drawer duplicate back
+ *     then); it's since become the real, visible, functioning checkout entry point - CONFIRMED
+ *     by clicking its "Go to checkout" button and landing on a working /checkout page with the
+ *     correct order summary. proceedToCheckout() below targets this one.
  */
 public class CartPage extends BasePage {
 
-    private static final String EMPTY_BASKET_TEXT = "Your delivery basket is empty";
-    private static final String SIDEBAR = "hopon-food-cart-sidebar";
-    // RE-CONFIRMED 2026-09-28 (environment drift, not a code bug): this button's
-    // copy changed from "PROCEED TO SECURE CHECKOUT" to "Continue to Checkout".
-    private static final String PROCEED_TO_CHECKOUT_TEXT = "Continue to Checkout";
+    private static final String EMPTY_BASKET_TEXT = "Your cart is empty";
+    private static final String SIDEBAR = "hopon-food-cart";
+    // CONFIRMED live (2026-11-03): the checkout button's own visible copy changed at least twice
+    // now ("PROCEED TO SECURE CHECKOUT" -> "Continue to Checkout" -> "Go to checkout") -
+    // matching its icon component's name instead (an svg icon library identifier, not display
+    // copy) so a future wording-only redesign doesn't break this again. Scoped inside the "All
+    // carts" overlay tag (not matched page-wide) since nothing else guarantees this icon name is
+    // unique elsewhere - see the class javadoc for why this is a different tag from SIDEBAR above.
+    private static final String CART_OVERLAY = "hopon-food-cart-sidebar";
+    private static final String CHECKOUT_BUTTON_SELECTOR = CART_OVERLAY + " button:has(lucide-icon[name='ArrowRight'])";
 
     public CartPage(Page page) {
         super(page);
@@ -50,9 +58,7 @@ public class CartPage extends BasePage {
     }
 
     public CheckoutPage proceedToCheckout() {
-        page.locator(":visible").filter(new Locator.FilterOptions().setHasText(PROCEED_TO_CHECKOUT_TEXT))
-                .last()
-                .click();
+        page.locator(CHECKOUT_BUTTON_SELECTOR).first().click();
         page.waitForLoadState();
         return new CheckoutPage(page);
     }

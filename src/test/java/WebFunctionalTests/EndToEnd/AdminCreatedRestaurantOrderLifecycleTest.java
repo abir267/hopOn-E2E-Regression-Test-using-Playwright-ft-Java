@@ -10,6 +10,7 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.Geolocation;
+import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.WaitForSelectorState;
 import foodAPIs.driverModule.DriverAPI;
 import foodAPIs.driverModule.DriverChat;
@@ -26,7 +27,7 @@ import pages.WebPages.customerPages.OrderTrackingPage;
 import pages.WebPages.customerPages.RestaurantMenuPage;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
-import utils.AdminPortalSheetReader;
+import utils.AdminCreatedRestaurant;
 import utils.ConfigReader;
 import utils.TestDataGenerator;
 
@@ -37,42 +38,10 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/**
- * Full five-actor order lifecycle: this test FIRST drives admin-portal-automation (the
- * sibling "admin-part" module, untouched here) through its own e2e-testng.xml suite
- * (CreateRestaurantTest -> RestaurantLoginTest -> AddCategoryTest -> CreateFoodTest) as
- * a separate Maven process, so the restaurant/category/food it then orders from is one
- * THIS run just created, not a stale row left over from someone else's earlier run.
- * That creation logs to the shared "HopOn Food- Automation data" Google Sheet, which
- * this then reads back (see AdminPortalSheetReader) to get the brand-new row, then
- * runs:
- *
- *   customer finds it via the search bar and orders -> restaurant accepts into
- *   "Preparing" -> driver accepts (while still Preparing) -> restaurant marks Ready for
- *   Pickup -> driver picks up and delivers.
- *
- * Same interleaving as OrderLifecycleDriverInLoopTest (driver accepts mid-prep, not
- * after - CONFIRMED the realistic ordering, see that class's javadoc).
- *
- * Search note: the customer finds this restaurant by its full name through the real search box
- * on the "/restaurants" listing page (HomePage.searchRestaurantsByName(), #search-input) -
- * CONFIRMED live (2026-11-02) that one genuinely filters by restaurant name (unlike the
- * shared-header searchFor() box, which only matches dish names - see its own javadoc; an
- * earlier version of this test searched by food name through THAT box instead, to work around
- * the wrong assumption that no restaurant-name search existed at all).
- *
- * Three independent systems (customer web app, restaurant-admin web app, driver-app
- * backend API) plus the admin-portal-automation process, so - like its siblings - this
- * manages its own Playwright/Browser rather than extending BaseRunner/AdminBaseRunner.
- */
+
 public class AdminCreatedRestaurantOrderLifecycleTest {
 
-    /**
-     * 2 retries, not the shared utils.RetryAnalyzer's 4 (that count is deliberately tuned
-     * there for OTP-render flakiness on other, much cheaper tests - see its own javadoc).
-     * Each retry of THIS test re-runs the ~2-4 minute admin-portal-automation creation
-     * subprocess from scratch, so 4 attempts is an unreasonably long worst case.
-     */
+    
     public static class TwoRetryAnalyzer implements IRetryAnalyzer {
         private static final int MAX_RETRY = 2;
         private int retryCount = 0;
@@ -92,18 +61,7 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
     private static final String FOOD_INSTRUCTIONS = "No onions please, extra pickles on the side";
     private static final String DELIVERY_INSTRUCTIONS = "Please call on arrival, flat 4B - do not ring the bell";
 
-    /**
-     * CONFIRMED live (2026-11-02, network capture of the restaurant detail API): every
-     * restaurant admin-portal-automation creates gets its delivery area drawn around THAT
-     * module's own geo.latitude/geo.longitude (Gulshan 1, see its config.properties) - not
-     * this project's generic delivery.latitude/delivery.longitude default. Ordering from the
-     * default coords (~2.1km away) returns "available":false ("CLOSED" badge, every menu item's
-     * "+" permanently disabled - NOT the stuck-backdrop/animation flake chased earlier, a real
-     * geofence miss). From these exact coordinates (0m away) the same restaurant returns
-     * "available":true. "Accepting Orders" (ensureRestaurantIsAcceptingOrders() below) and
-     * admin's own "Activate store status" were BOTH independently confirmed already true the
-     * whole time - this geofence mismatch was the actual cause, not either of those.
-     */
+    
     private static final double GULSHAN_1_LATITUDE = 23.7806;
     private static final double GULSHAN_1_LONGITUDE = 90.4166;
 
@@ -112,11 +70,9 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
             + "-> restaurant marks Ready -> driver picks up and delivers",
             retryAnalyzer = TwoRetryAnalyzer.class)
     public void customerOrdersFromLatestAdminCreatedRestaurant() {
-        createRestaurantCategoryAndFoodViaAdminPortal();
-
-        AdminPortalSheetReader.AdminCreatedRestaurant restaurant = new AdminPortalSheetReader().lastCreatedRestaurant();
-        System.out.println("[ADMIN] Restaurant: " + restaurant.name() + " (created " + restaurant.createdTime()
-                + ", id=" + restaurant.restaurantId() + ") | Category: " + restaurant.category()
+        AdminCreatedRestaurant.CreatedRestaurant restaurant = createRestaurantCategoryAndFoodViaAdminPortal();
+        System.out.println("[ADMIN] Restaurant: " + restaurant.name()
+                + " (id=" + restaurant.restaurantId() + ") | Category: " + restaurant.category()
                 + " | Food: " + restaurant.food());
 
         try (Playwright playwright = Playwright.create()) {
@@ -202,10 +158,14 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
 
                 utils.MqttConsoleCapture.awaitStatus(orderNo, "Completed", 10);
                 driverAPI.close();
+
+                turnOffAcceptingOrdersAndVerifyClosedOnCustomerWeb(browser, restaurant);
+
                 browser.close();
                 System.out.println("[RESULT] SUCCESS: " + restaurant.name() + " (" + restaurant.food()
                         + ") - admin -> customer (chat, Special/Delivery Instructions) -> restaurant "
-                        + "(Preparing -> Ready) -> driver (Accepted -> Arrived -> PickedUp -> Delivered).");
+                        + "(Preparing -> Ready) -> driver (Accepted -> Arrived -> PickedUp -> Delivered) -> "
+                        + "restaurant turned OFF (customer-web closed-check disabled for now).");
             } catch (Throwable t) {
                 System.out.println("[FAILED] customerOrdersFromLatestAdminCreatedRestaurant: " + t.getClass().getSimpleName()
                         + " - " + t.getMessage());
@@ -217,17 +177,8 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         }
     }
 
-    /**
-     * Runs admin-portal-automation's own e2e-testng.xml suite (CreateRestaurantTest ->
-     * RestaurantLoginTest -> AddCategoryTest -> CreateFoodTest, untouched - see that
-     * module's pom.xml/e2e-testng.xml) as a separate Maven process, in that module's
-     * directory, exactly the manual command documented there:
-     *   mvn clean test "-DsuiteFile=e2e-testng.xml"
-     * Zero code shared or changed with that module - this only shells out to it, so
-     * every run of THIS test orders from a restaurant it just created, never a stale
-     * row some earlier run left in the shared Google Sheet.
-     */
-    private void createRestaurantCategoryAndFoodViaAdminPortal() {
+    
+    private AdminCreatedRestaurant.CreatedRestaurant createRestaurantCategoryAndFoodViaAdminPortal() {
         System.out.println("[ADMIN] Running admin-portal-automation e2e suite (create restaurant -> category -> food)...");
         boolean windows = System.getProperty("os.name", "").toLowerCase().contains("win");
         String mvnExecutable = windows ? "mvn.cmd" : "mvn";
@@ -257,26 +208,10 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Could not run admin-portal-automation's e2e-testng.xml suite", e);
         }
+        return AdminCreatedRestaurant.latest();
     }
 
-    /**
-     * CONFIRMED live (2026-11-01, standalone DOM probe outside this test too - not test-order
-     * specific): HomePage.setDeliveryLocationToCurrentLocation() closes the "Change Delivery
-     * Location" dialog itself (its own isGoneOrChanged check passes), but the modal's
-     * full-screen backdrop (div.fixed.inset-0...z-[200]) can get stuck mid fade-out and never
-     * actually leave the DOM - a real Angular leave-animation bug on the live site, reproduced
-     * independently of any delivery-location VALUE (the location is already applied by this
-     * point; only the leftover backdrop is broken). Waiting alone is not reliable here - the
-     * probe still saw it stuck after 10s - so if it's still there past the wait, force it out
-     * of the way directly rather than let every subsequent click retry-storm against it.
-     *
-     * CONFIRMED (2026-11-02) the SAME pattern also happens on RestaurantMenuPage's item-detail
-     * "Choose options" modal (hopon-food-detail-modal) right after addItemToCartWithSize()'s
-     * "Add to Cart" click - that method only waits for the cart network response, not for the
-     * modal's own close animation, which is normally enough time for other tests but not when
-     * something else (this test's coupon check) interacts with the page right after. Hence the
-     * selector/label params instead of hardcoding the location modal's own backdrop.
-     */
+    
     private void waitForModalOverlayToClear(Page page, String backdropSelector, String label) {
         try {
             page.locator(backdropSelector).first().waitFor(new Locator.WaitForOptions()
@@ -293,14 +228,7 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         }
     }
 
-    /**
-     * CONFIRMED live (2026-11-02, DOM probe): "/restaurants" has its OWN search box
-     * (HomePage.searchRestaurantsByName(), #search-input) that genuinely filters by restaurant
-     * name - typing the restaurant's exact name narrows the grid to "Showing 1 places", that
-     * exact restaurant. This is the real path (not a cosmetic/best-effort one, and not the id-
-     * based shortcut this test used before) - a real user finding this restaurant would use
-     * this same search box, by name, same as the instruction behind this test.
-     */
+    
     private void openRestaurantViaSearch(HomePage home, String restaurantName) {
         home.openRestaurantsTab();
         home.searchRestaurantsByName(restaurantName);
@@ -308,15 +236,8 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         home.openRestaurantFromSearchResults(restaurantName);
     }
 
-    /**
-     * CORRECTED (2026-11-02): this was the first theory for the "CLOSED"/unavailable symptom -
-     * WRONG, kept only as a harmless defensive check. CreateRestaurantPage's own source comment
-     * confirms "Activate store status" IS LiveOrdersPage's "Accepting Orders" toggle (the exact
-     * same field, not two different ones), and CONFIRMED live it was already true both before
-     * and after calling setAcceptingOrders(true) here. The real cause was a delivery-area
-     * geofence mismatch - see GULSHAN_1_LATITUDE's javadoc.
-     */
-    private void ensureRestaurantIsAcceptingOrders(Browser browser, AdminPortalSheetReader.AdminCreatedRestaurant restaurant) {
+    
+    private void ensureRestaurantIsAcceptingOrders(Browser browser, AdminCreatedRestaurant.CreatedRestaurant restaurant) {
         BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                 .setBaseURL(ConfigReader.restaurantAdminUrl())
                 .setViewportSize(1440, 900));
@@ -327,7 +248,7 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         LiveOrdersPage liveOrders = new LiveOrdersPage(page);
         boolean wasAccepting = liveOrders.isAcceptingOrders();
         liveOrders.setAcceptingOrders(true);
-        System.out.println("[ADMIN] " + restaurant.name() + " accepting-orders status: "
+        System.out.println("[RESTAURANT] " + restaurant.name() + " accepting-orders status: "
                 + (wasAccepting ? "already ON" : "was OFF, turned ON"));
         context.close();
     }
@@ -335,7 +256,76 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
     private record CustomerSession(String orderNo, String customerId, OrderTrackingPage tracking) {
     }
 
-    private CustomerSession placeCustomerOrder(Browser browser, AdminPortalSheetReader.AdminCreatedRestaurant restaurant) {
+    /**
+     * After the order lifecycle is done: turns Accepting Orders OFF for this restaurant on the
+     * restaurant-admin portal, re-confirmed with a fresh page reload (not just the toggle click's
+     * own optimistic state). The customer-side "is it really shown as closed" check is currently
+     * DISABLED below pending a live root-cause investigation - see that comment block.
+     */
+    private void turnOffAcceptingOrdersAndVerifyClosedOnCustomerWeb(Browser browser, AdminCreatedRestaurant.CreatedRestaurant restaurant) {
+        BrowserContext adminContext = browser.newContext(new Browser.NewContextOptions()
+                .setBaseURL(ConfigReader.restaurantAdminUrl())
+                .setViewportSize(1440, 900));
+        Page adminPage = adminContext.newPage();
+        RestaurantPortalPage portal = new WebRestaurantLogin(adminPage)
+                .loginWithEmailAndPassword(restaurant.email(), restaurant.password());
+        portal.openLiveOrders();
+        LiveOrdersPage liveOrders = new LiveOrdersPage(adminPage);
+        liveOrders.setAcceptingOrders(false);
+        // Not just trusting the toggle click's own optimistic client-side state - reload the
+        // page and re-read the label fresh, so this is a real round trip to the backend
+        // confirming the OFF state actually persisted, not just what the UI assumed right
+        // after clicking.
+        adminPage.reload();
+        adminPage.waitForLoadState(LoadState.NETWORKIDLE);
+        boolean confirmedOffAfterReload = !liveOrders.isAcceptingOrders();
+        System.out.println("[RESTAURANT] " + restaurant.name() + " accepting-orders status: turned OFF (re-checked "
+                + "after page reload: " + (confirmedOffAfterReload ? "confirmed OFF" : "STILL SHOWS ON") + ")");
+        Assert.assertTrue(confirmedOffAfterReload,
+                "Expected " + restaurant.name() + " to show Accepting Orders OFF after a fresh page reload");
+        adminContext.close();
+
+        // Disabled (2026-11-03, user instruction): the customer-side "really off" check below
+        // failed on a real run ("CLOSED" badge not visible) even though the restaurant-portal
+        // side above was freshly re-confirmed OFF. The listing page's "Unavailable" badge passed
+        // first, which rules out a simple propagation-delay theory. Root cause not yet confirmed
+        // live - see this method's git history/PR notes for the working theory (the listing
+        // badge and the restaurant-page "CLOSED" badge may be driven by two different signals -
+        // accepting-orders vs the delivery-area/geofence check that was the real cause of
+        // unavailability earlier in this file, see GULSHAN_1_LATITUDE's javadoc). Needs a live
+        // probe on a real admin-created restaurant before re-enabling, not a guess.
+        // BrowserContext customerContext = browser.newContext(new Browser.NewContextOptions()
+        //         .setViewportSize(1366, 768)
+        //         .setGeolocation(new Geolocation(GULSHAN_1_LATITUDE, GULSHAN_1_LONGITUDE))
+        //         .setPermissions(List.of("geolocation")));
+        // Page customerPage = customerContext.newPage();
+        // HomePage home = new HomePage(customerPage).open(ConfigReader.baseUrl());
+        // home.openLogin();
+        // new LoginPage(customerPage).loginWithPhoneAndOtp(TestDataGenerator.randomRiderPhone(), ConfigReader.testUserOtp());
+        // home.setDeliveryLocationToCurrentLocation();
+        // waitForModalOverlayToClear(customerPage, "div.fixed.inset-0", "Location modal");
+        //
+        // home.openRestaurantsTab();
+        // home.searchRestaurantsByName(restaurant.name());
+        // System.out.println("[CUSTOMER] Searched \"" + restaurant.name() + "\" after turning it off");
+        //
+        // boolean showsUnavailableOnListing = customerPage.locator("hopon-food-nearby-restaurant-card")
+        //         .filter(new Locator.FilterOptions().setHasText(restaurant.name())).first()
+        //         .getByText("Unavailable").isVisible();
+        // System.out.println("[CUSTOMER] Listing card shows \"Unavailable\": " + showsUnavailableOnListing);
+        // Assert.assertTrue(showsUnavailableOnListing,
+        //         "Expected " + restaurant.name() + " to show \"Unavailable\" on the listing after turning Accepting Orders off");
+        //
+        // home.openRestaurantFromSearchResults(restaurant.name());
+        // boolean showsClosedBadge = customerPage.getByText("CLOSED", new Page.GetByTextOptions().setExact(true)).isVisible();
+        // System.out.println("[CUSTOMER] Restaurant page shows \"CLOSED\" badge: " + showsClosedBadge);
+        // Assert.assertTrue(showsClosedBadge,
+        //         "Expected a \"CLOSED\" badge on " + restaurant.name() + "'s page after turning Accepting Orders off");
+        //
+        // customerContext.close();
+    }
+
+    private CustomerSession placeCustomerOrder(Browser browser, AdminCreatedRestaurant.CreatedRestaurant restaurant) {
         BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                 .setViewportSize(1366, 768)
                 // GULSHAN_1_LATITUDE/LONGITUDE, not ConfigReader.deliveryLatitude/Longitude() - see
@@ -376,6 +366,10 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
         }
 
         menuPage.openCategoryTab(restaurant.category());
+        // Real in-page search, not just relying on the category tab already showing it - see
+        // RestaurantMenuPage.searchMenuByName()'s javadoc.
+        menuPage.searchMenuByName(restaurant.food());
+        System.out.println("[CUSTOMER] Searched restaurant's own menu for \"" + restaurant.food() + "\"");
         // Special Instructions (per-item modal) - RESTAURANT-facing, see
         // RestaurantAndDriverSeeCustomerInstructionsTest for which backend field this is and
         // who is actually supposed to see it.

@@ -9,6 +9,12 @@ import com.hopon.utils.GoogleSheetsUtil;
 import com.hopon.utils.Steps;
 import org.testng.annotations.Test;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Properties;
+
 public class CreateFoodTest extends BaseTest {
 
     @Test
@@ -45,7 +51,32 @@ public class CreateFoodTest extends BaseTest {
         Steps.run("Upload food photo", menu::uploadFoodPhoto);
         Steps.run("Save and publish", menu::saveAndPublish);
 
+        // Local handoff file for the main project (hopon-food-automation), saved before the
+        // sheet below - this is the first point name/email/password/id/category/food are all
+        // in scope together. Read back by utils.AdminCreatedRestaurant there, instead of it
+        // reading the Google Sheet - see that class's javadoc.
+        saveLastCreatedRestaurantFile(restaurant, categoryName, foodName);
+
         // Saved only after the food was published
         Steps.run("Save food to the sheet", () -> sheet.saveFood(restaurant.row(), foodName));
+    }
+
+    private static void saveLastCreatedRestaurantFile(GoogleSheetsUtil.RestaurantCredential restaurant,
+                                                        String categoryName, String foodName) {
+        Properties props = new Properties();
+        props.setProperty("name", restaurant.name());
+        props.setProperty("email", restaurant.email());
+        props.setProperty("password", restaurant.password());
+        props.setProperty("restaurantId", restaurant.restaurantId());
+        props.setProperty("category", categoryName);
+        props.setProperty("food", foodName);
+        try {
+            Files.createDirectories(Path.of("target"));
+            try (FileOutputStream out = new FileOutputStream("target/last-created-restaurant.properties")) {
+                props.store(out, "Written by CreateFoodTest - read by utils.AdminCreatedRestaurant in the main project");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Could not write target/last-created-restaurant.properties", e);
+        }
     }
 }
