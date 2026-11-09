@@ -4,7 +4,7 @@
 
     <test name="WebRestaurantAdmin">
         <classes>
-            <class name="WebFunctionalTests.AdminPortal.WebRestaurantNavigationTest"/>
+            <class name="WebFunctionalTests.WebPortal.WebRestaurantNavigationTest"/>
         </classes>
     </test>
 

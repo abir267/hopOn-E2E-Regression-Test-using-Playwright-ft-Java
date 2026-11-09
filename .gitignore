@@ -10,3 +10,6 @@ target/
 src/test/java/MobileTests/
 src/test/java/init/MobileBaseRunner.java
 test-suites/mobile-testng.xml
+
+# Standalone API testing sandbox (Postman/Newman) - exploratory, not pushed
+api-testing/

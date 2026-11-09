@@ -106,6 +106,19 @@ public class ConfigReader {
         return get("restaurant.admin.url");
     }
 
+    /** Hop On Admin Management portal (staff backoffice) - not the per-restaurant portal above. */
+    public static String adminPortalUrl() {
+        return get("admin.portal.url");
+    }
+
+    public static String adminPortalEmail() {
+        return get("admin.portal.email");
+    }
+
+    public static String adminPortalPassword() {
+        return get("admin.portal.password");
+    }
+
     public static String restaurantAdminEmail() {
         return get("restaurant.admin.email");
     }

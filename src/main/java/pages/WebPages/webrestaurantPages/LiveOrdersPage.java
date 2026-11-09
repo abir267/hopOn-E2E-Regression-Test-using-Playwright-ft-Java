@@ -282,7 +282,7 @@ public class LiveOrdersPage extends AdminBasePage {
      */
     public String orderUuidFor(String orderNo) {
         var response = page.waitForResponse(
-                r -> r.url().contains("food-orders") && r.text().contains(orderNo),
+                r -> r.url().contains("food-orders") && hasBodyContaining(r, orderNo),
                 page::reload);
         try {
             JsonNode root = mapper.readTree(response.text());
@@ -298,6 +298,20 @@ public class LiveOrdersPage extends AdminBasePage {
             throw new IllegalStateException("Order " + orderNo + " not found in on-going orders response: " + response.text());
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new RuntimeException("Non-JSON on-going orders response", e);
+        }
+    }
+
+    // CONFIRMED live (2026-11-09): some food-orders responses (CORS preflight, requests the
+    // reload aborts) have no body Chrome keeps, and text() on them throws "No resource with
+    // given identifier found" - which escaped the predicate and failed the whole test.
+    private static boolean hasBodyContaining(com.microsoft.playwright.Response r, String text) {
+        if (r.status() != 200 || !"GET".equals(r.request().method())) {
+            return false;
+        }
+        try {
+            return r.text().contains(text);
+        } catch (com.microsoft.playwright.PlaywrightException e) {
+            return false;
         }
     }
 }

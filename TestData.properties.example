@@ -33,6 +33,11 @@ restaurant.admin.url=https://dev-foodadmin.hoponbd.com
 restaurant.admin.email=CHANGE_ME
 restaurant.admin.password=CHANGE_ME
 
+# Hop On Admin Management portal (staff backoffice, not the per-restaurant portal above)
+admin.portal.url=https://dev-admin.hoponbd.com/public/login
+admin.portal.email=CHANGE_ME
+admin.portal.password=CHANGE_ME
+
 # Driver-app order-status API (see foodAPIs/driverModule/DriverAPI.java)
 driver.api.base.url=http://dev-api.hoponbd.com
 driver.auth.token=CHANGE_ME

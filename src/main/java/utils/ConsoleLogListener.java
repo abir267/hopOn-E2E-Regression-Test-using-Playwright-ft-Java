@@ -69,11 +69,50 @@ public class ConsoleLogListener implements ITestListener {
         Throwable t = result.getThrowable();
         System.out.println("[TEST] FAILED " + name(result) + " (" + seconds(result) + "s)"
                 + (t == null ? "" : " - " + t.getClass().getSimpleName() + ": " + t.getMessage()));
+        printErrorLog(result);
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
         System.out.println("[TEST] SKIPPED " + name(result));
+        // A retried attempt is reported as SKIPPED but still carries the exception that caused it.
+        printErrorLog(result);
+    }
+
+    /**
+     * Copy-paste friendly error block: full cause chain + stack trace (test-framework/JDK frames
+     * trimmed), printed between BEGIN/END markers and also saved to target/error-log.txt.
+     * Stack lines are indented with spaces (not tabs) so they print without a timestamp prefix.
+     */
+    private static void printErrorLog(ITestResult result) {
+        Throwable t = result.getThrowable();
+        if (t == null) {
+            return;
+        }
+        java.io.StringWriter sw = new java.io.StringWriter();
+        t.printStackTrace(new java.io.PrintWriter(sw));
+        StringBuilder body = new StringBuilder();
+        for (String line : sw.toString().split("\\R")) {
+            boolean noise = line.startsWith("\tat org.testng.") || line.startsWith("\tat java.base/")
+                    || line.startsWith("\tat jdk.internal.") || line.startsWith("\tat org.apache.maven.")
+                    || line.startsWith("\tat sun.reflect.");
+            if (!noise && !line.isBlank()) {
+                body.append(line.replace("\t", "    ")).append(System.lineSeparator());
+            }
+        }
+        String header = "===== ERROR LOG: " + name(result) + " (" + seconds(result) + "s) =====";
+        System.out.println("[FAILED] " + header);
+        System.out.print(body);
+        System.out.println("[FAILED] ===== END ERROR LOG =====");
+        try {
+            java.nio.file.Path file = java.nio.file.Paths.get("target", "error-log.txt");
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, header + System.lineSeparator() + body,
+                    StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException ignored) {
+            // terminal copy is the main output; the file is a convenience
+        }
     }
 
     private static String name(ITestResult result) {

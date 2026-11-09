@@ -13,6 +13,7 @@ public abstract class BasePage {
     protected BasePage(Page page) {
         this.page = page;
         utils.MqttConsoleCapture.attach(page, "CUSTOMER");
+        utils.NetworkErrorCapture.attach(page, "CUSTOMER");
     }
 
     protected Locator locator(String selector) {

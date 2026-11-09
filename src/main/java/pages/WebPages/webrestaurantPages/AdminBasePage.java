@@ -12,6 +12,7 @@ public abstract class AdminBasePage {
     protected AdminBasePage(Page page) {
         this.page = page;
         utils.MqttConsoleCapture.attach(page, "RESTAURANT");
+        utils.NetworkErrorCapture.attach(page, "RESTAURANT");
     }
 
     protected Locator locator(String selector) {

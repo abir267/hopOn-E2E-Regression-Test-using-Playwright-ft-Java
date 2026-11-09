@@ -1,7 +1,9 @@
 package pages.WebPages.webrestaurantPages;
 
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.WaitUntilState;
 import utils.ConfigReader;
 
 /**
@@ -22,7 +24,27 @@ public class WebRestaurantLogin extends AdminBasePage {
 
     public WebRestaurantLogin(Page page) {
         super(page);
-        page.navigate(ConfigReader.restaurantAdminUrl());
+        navigateToLogin(page);
+    }
+
+    /**
+     * Not a bare page.navigate(url): that waits for the full "load" event, which the dev portal
+     * sometimes never fires within 30s (slow third-party/map/font resources) - seen live as
+     * "TimeoutError: navigating to https://dev-foodadmin.hoponbd.com/, waiting until load".
+     * The login form only needs the DOM (enterEmail() auto-waits for the input), so wait for
+     * DOMCONTENTLOADED, allow 60s, and retry once on a timeout.
+     */
+    private static void navigateToLogin(Page page) {
+        String url = ConfigReader.restaurantAdminUrl();
+        Page.NavigateOptions options = new Page.NavigateOptions()
+                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                .setTimeout(60000);
+        try {
+            page.navigate(url, options);
+        } catch (TimeoutError firstAttempt) {
+            System.out.println("[RESTAURANT] Portal login page timed out after 60s - retrying once: " + url);
+            page.navigate(url, options);
+        }
     }
 
     public WebRestaurantLogin enterEmail(String email) {

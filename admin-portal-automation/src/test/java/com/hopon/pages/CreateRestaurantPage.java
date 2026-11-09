@@ -209,8 +209,23 @@ public class CreateRestaurantPage extends BasePage {
     // Ticks the cuisine checkbox. Safe if it is already ticked
     public void selectCuisine(String cuisine) {
         String checkbox = "label:has(span:text-is('" + cuisine + "')) input[type='checkbox']";
-        scrollToCenter(checkbox);
-        page.locator(checkbox).check();
+        try {
+            scrollToCenter(checkbox);
+            page.locator(checkbox).check();
+        } catch (RuntimeException e) {
+            // Diagnostics for a failed cuisine step: where the page really is and what it shows
+            System.out.println("[DIAG] Cuisine checkbox not found. URL=" + page.url());
+            try {
+                java.nio.file.Path shot = java.nio.file.Paths.get("target", "cuisine-fail.png");
+                page.screenshot(new Page.ScreenshotOptions().setPath(shot).setFullPage(true));
+                System.out.println("[DIAG] Screenshot: " + shot.toAbsolutePath());
+                String text = page.locator("body").innerText();
+                System.out.println("[DIAG] Page text: " + text.substring(0, Math.min(text.length(), 600)).replace("\n", " | "));
+            } catch (RuntimeException ignored) {
+                // diagnostics only
+            }
+            throw e;
+        }
     }
 
     public void applyMondayHoursToAllDays() {

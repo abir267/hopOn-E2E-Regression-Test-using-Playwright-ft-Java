@@ -29,6 +29,7 @@ import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 import utils.AdminCreatedRestaurant;
 import utils.ConfigReader;
+import utils.RestaurantActivationApi;
 import utils.TestDataGenerator;
 
 import java.io.BufferedReader;
@@ -160,6 +161,13 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
                 driverAPI.close();
 
                 turnOffAcceptingOrdersAndVerifyClosedOnCustomerWeb(browser, restaurant);
+
+                // Flow done -> switch the restaurant's ACTIVATION off via the super-admin API
+                // (PATCH /services/admin/api/restaurant-activation, activated=false). Prints the reply.
+                JsonNode deactivated = RestaurantActivationApi.deactivate(
+                        playwright, browser, restaurant.restaurantId(), restaurant.name());
+                System.out.println("[ADMIN-API] Activation OFF confirmed for " + restaurant.name()
+                        + " (id=" + restaurant.restaurantId() + "): " + deactivated);
 
                 browser.close();
                 System.out.println("[RESULT] SUCCESS: " + restaurant.name() + " (" + restaurant.food()

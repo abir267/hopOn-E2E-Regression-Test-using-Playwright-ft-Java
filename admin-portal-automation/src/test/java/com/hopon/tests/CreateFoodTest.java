@@ -51,10 +51,7 @@ public class CreateFoodTest extends BaseTest {
         Steps.run("Upload food photo", menu::uploadFoodPhoto);
         Steps.run("Save and publish", menu::saveAndPublish);
 
-        // Local handoff file for the main project (hopon-food-automation), saved before the
-        // sheet below - this is the first point name/email/password/id/category/food are all
-        // in scope together. Read back by utils.AdminCreatedRestaurant there, instead of it
-        // reading the Google Sheet - see that class's javadoc.
+        
         saveLastCreatedRestaurantFile(restaurant, categoryName, foodName);
 
         // Saved only after the food was published

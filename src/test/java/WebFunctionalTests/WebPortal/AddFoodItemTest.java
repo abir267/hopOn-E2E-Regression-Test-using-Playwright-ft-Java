@@ -1,4 +1,4 @@
-package WebFunctionalTests.AdminPortal;
+package WebFunctionalTests.WebPortal;
 
 import init.AdminBaseRunner;
 import org.testng.Assert;
