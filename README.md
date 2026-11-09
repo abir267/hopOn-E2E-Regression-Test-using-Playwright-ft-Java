@@ -213,7 +213,7 @@ With the terminal listener (see "Reading the terminal output") the `[MQTT]` push
 Run (from the repo root):
 
 ```bash
-mvn clean test "-DsuiteXmlFile=test-suites/adminCreatedRestaurantOrderLifecycle.xml"
+mvn test "-DsuiteXmlFile=test-suites/adminCreatedRestaurantOrderThenSuspend.xml"
 ```
 
 After the order is delivered, the test cleans up the restaurant in two steps:
