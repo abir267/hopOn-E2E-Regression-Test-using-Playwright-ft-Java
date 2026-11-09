@@ -222,13 +222,6 @@ After the order is delivered, the test cleans up the restaurant in two steps:
    and re-reads it after a page reload to confirm it really persisted. (The customer-web "shows as closed" check
    that used to follow is commented out in the test pending a live root-cause investigation — see the comment in
    `turnOffAcceptingOrdersAndVerifyClosedOnCustomerWeb`.)
-2. **Activation OFF through the admin API** (`utils/RestaurantActivationApi`). Logs into the Hop On
-   Admin Management portal with `admin.portal.*`, copies the bearer token off the portal's own API calls (nothing
-   hardcoded), and sends
-   `PATCH https://dev-api.hoponbd.com/services/admin/api/restaurant-activation` with
-   `{"restaurantId": "<id>", "activated": false}` (the same endpoint/body `admin-portal-automation` uses with
-   `activated=true` to switch a new restaurant on). The HTTP status and reply are printed as `[ADMIN-API]` lines;
-   a non-2xx status, or a reply whose `title` isn't `Success`, fails the test.
 
 Real output of one run of `test-suites/adminCreatedRestaurantOrderThenSuspend.xml` (2026-11-09, run with
 `-Dno.color=true`). Trimmed: `admin-portal-automation`'s own `STEP: ...` / Maven lines (same as running it
