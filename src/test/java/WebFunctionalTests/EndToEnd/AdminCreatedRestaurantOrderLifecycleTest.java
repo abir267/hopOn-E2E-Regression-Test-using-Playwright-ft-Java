@@ -25,10 +25,9 @@ import pages.WebPages.customerPages.HomePage;
 import pages.WebPages.customerPages.LoginPage;
 import pages.WebPages.customerPages.OrderTrackingPage;
 import pages.WebPages.customerPages.RestaurantMenuPage;
-import org.testng.IRetryAnalyzer;
-import org.testng.ITestResult;
 import utils.AdminCreatedRestaurant;
 import utils.ConfigReader;
+import utils.Preflight;
 import utils.RestaurantActivationApi;
 import utils.TestDataGenerator;
 
@@ -42,22 +41,6 @@ import java.util.List;
 
 public class AdminCreatedRestaurantOrderLifecycleTest {
 
-    
-    public static class TwoRetryAnalyzer implements IRetryAnalyzer {
-        private static final int MAX_RETRY = 2;
-        private int retryCount = 0;
-
-        @Override
-        public boolean retry(ITestResult result) {
-            if (retryCount < MAX_RETRY) {
-                retryCount++;
-                System.out.printf("Retrying '%s' (attempt %d/%d)%n",
-                        result.getMethod().getMethodName(), retryCount, MAX_RETRY);
-                return true;
-            }
-            return false;
-        }
-    }
 
     private static final String FOOD_INSTRUCTIONS = "No onions please, extra pickles on the side";
     private static final String DELIVERY_INSTRUCTIONS = "Please call on arrival, flat 4B - do not ring the bell";
@@ -68,9 +51,11 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
 
     @Test(description = "Admin creates restaurant+category+food -> customer orders from it (Special/Delivery "
             + "Instructions) -> restaurant accepts into Preparing -> driver accepts+arrives mid-prep, customer<->driver chat "
-            + "-> restaurant marks Ready -> driver picks up and delivers",
-            retryAnalyzer = TwoRetryAnalyzer.class)
+            + "-> restaurant marks Ready -> driver picks up and delivers")
     public void customerOrdersFromLatestAdminCreatedRestaurant() {
+        // One clear list of anything missing (TestData.properties, working dir, Google key, mvn on PATH)
+        // before the ~2 minute admin step starts, instead of failing one thing at a time deep into the run.
+        Preflight.checkAdminCreatedRestaurantFlow();
         AdminCreatedRestaurant.CreatedRestaurant restaurant = createRestaurantCategoryAndFoodViaAdminPortal();
         System.out.println("[ADMIN] Restaurant: " + restaurant.name()
                 + " (id=" + restaurant.restaurantId() + ") | Category: " + restaurant.category()
@@ -102,11 +87,12 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
                 String orderUuid = liveOrders.orderUuidFor(orderNo);
                 Assert.assertNotNull(orderUuid, "Expected to find order " + orderNo + " in the on-going orders list");
 
-                liveOrders.openTab("New");
-                liveOrders.openOrder(orderNo);
-                liveOrders.acceptAndStartPreparing();
+                // The platform now often puts a new order straight into Preparing (the customer's modal reads
+                // "Preparing your food" at once), so only accept it when it is really waiting in the New tab.
+                boolean acceptedByRestaurant = liveOrders.acceptIfNew(orderNo);
                 String pin = liveOrders.pickupPin();
-                System.out.println("[RESTAURANT] Order #" + orderNo + " accepted -> Preparing (pin=" + pin + "), no driver assigned yet");
+                System.out.println("[RESTAURANT] Order #" + orderNo + (acceptedByRestaurant ? " accepted" : " was already Preparing (auto-accepted)")
+                        + " -> Preparing (pin=" + pin + "), no driver assigned yet");
 
                 JsonNode accepted = driverAPI.acceptOrder(orderUuid);
                 assertDriverStatus(accepted, "Accepted");
@@ -188,8 +174,8 @@ public class AdminCreatedRestaurantOrderLifecycleTest {
     
     private AdminCreatedRestaurant.CreatedRestaurant createRestaurantCategoryAndFoodViaAdminPortal() {
         System.out.println("[ADMIN] Running admin-portal-automation e2e suite (create restaurant -> category -> food)...");
-        boolean windows = System.getProperty("os.name", "").toLowerCase().contains("win");
-        String mvnExecutable = windows ? "mvn.cmd" : "mvn";
+        // Resolved by Preflight (PATH first, then MAVEN_HOME/M2_HOME) - an IDE often has no mvn on PATH.
+        String mvnExecutable = Preflight.mavenExecutable();
         ProcessBuilder processBuilder = new ProcessBuilder(mvnExecutable, "clean", "test", "-DsuiteFile=e2e-testng.xml")
                 .directory(new File("admin-portal-automation"))
                 .redirectErrorStream(true);

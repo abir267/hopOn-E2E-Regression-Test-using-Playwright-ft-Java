@@ -108,15 +108,47 @@ public class ConfigReader {
 
     /** Hop On Admin Management portal (staff backoffice) - not the per-restaurant portal above. */
     public static String adminPortalUrl() {
-        return get("admin.portal.url");
+        return adminPortalValue("admin.portal.url", "admin.url");
     }
 
     public static String adminPortalEmail() {
-        return get("admin.portal.email");
+        return adminPortalValue("admin.portal.email", "admin.email");
     }
 
     public static String adminPortalPassword() {
-        return get("admin.portal.password");
+        return adminPortalValue("admin.portal.password", "admin.password");
+    }
+
+    private static final String ADMIN_PROJECT_CONFIG = "admin-portal-automation/src/test/resources/config.properties";
+
+    static boolean isPlaceholder(String value) {
+        return value == null || value.isBlank() || value.trim().startsWith("CHANGE_ME") || value.trim().startsWith("<");
+    }
+
+    /**
+     * admin.portal.* from TestData.properties; if missing or still the CHANGE_ME placeholder from the example file,
+     * falls back to the same super-admin login admin-portal-automation already uses (it is tracked in git, so a fresh
+     * clone has it). Without this a copied-but-unedited example file makes the admin login fail only after a 30s
+     * redirect timeout, with no hint that the credentials were the problem.
+     */
+    private static String adminPortalValue(String key, String adminProjectKey) {
+        String value = get(key, "");
+        if (!isPlaceholder(value)) {
+            return value;
+        }
+        Properties adminProject = new Properties();
+        try (InputStream in = Files.newInputStream(Paths.get(ADMIN_PROJECT_CONFIG))) {
+            adminProject.load(in);
+        } catch (IOException ignored) {
+            // reported below if the key is not available either
+        }
+        String fallback = adminProject.getProperty(adminProjectKey);
+        if (isPlaceholder(fallback)) {
+            throw new IllegalStateException("'" + key + "' in " + CONFIG_FILE_NAME + " is missing or still a placeholder "
+                    + "(CHANGE_ME), and no '" + adminProjectKey + "' was found in " + ADMIN_PROJECT_CONFIG
+                    + " to fall back to. Set a real value.");
+        }
+        return fallback.trim();
     }
 
     public static String restaurantAdminEmail() {
@@ -172,6 +204,14 @@ public class ConfigReader {
 
     public static String androidAppActivity() {
         return get("android.app.activity", "");
+    }
+
+    /**
+     * Package id of the DRIVER app driven over adb by pages.MobilePages.DriverFoodApp (not the rider app that
+     * android.app.package points at). Override with driver.app.package if the build id differs.
+     */
+    public static String driverAppPackage() {
+        return get("driver.app.package", "com.hoponbd.driver");
     }
 
     /** Path to an .apk to install before the session starts. Leave blank if the app is already installed on the device. */

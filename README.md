@@ -63,6 +63,23 @@ mvn clean install
 mvn exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
 ```
 
+**Running from IntelliJ / a fresh clone — what is NOT in git and must exist on your machine:**
+
+| Needed | Why / how |
+|---|---|
+| `TestData.properties` (repo root) | gitignored, per machine. Copy `TestData.properties.example` and replace every `CHANGE_ME`. `driver.auth.token` must be a real JWT (three dot-separated parts, no `Bearer ` prefix). `admin.portal.*` may stay `CHANGE_ME` — it then falls back to `admin-portal-automation`'s own super-admin login. |
+| Working directory = repo root | Everything is resolved relative to it. In IntelliJ: *Run > Edit Configurations > Working directory* = `$PROJECT_DIR$`. |
+| `admin-portal-automation/google-credentials.json` | gitignored service-account key used by the admin project (Google Sheet). Ask whoever set it up. |
+| `mvn` runnable | `AdminCreatedRestaurantOrderLifecycleTest` runs `mvn clean test` as a child process. Maven must be on `PATH` (or `MAVEN_HOME` set), and IntelliJ restarted after changing it. |
+| Playwright browser | the `mvn exec:java ... install chromium` command above. |
+
+`AdminCreatedRestaurantOrderLifecycleTest` checks the first four itself before it starts and fails in one go with a
+numbered list of what is missing (`[PREFLIGHT] N problem(s) - fix these before running:`).
+`AdminCreatedRestaurantSuspendTest` does the same for its own needs (admin login configured, and a restaurant to
+suspend: `admin-portal-automation/target/last-created-restaurant.properties` — which `mvn clean` in that project
+deletes). To check without running a test, from the repo root: `java -cp target/classes utils.Preflight`
+(lifecycle) or `java -cp target/classes utils.Preflight suspend`; both print `[PREFLIGHT] OK ...` when fine.
+
 Set `headless=false` in `TestData.properties` to watch the browser while a
 test runs — much easier to follow than reading a stack trace after the fact.
 
@@ -432,7 +449,7 @@ same way. Know which is which before relying on it:
 - `DriverAPI` — every status transition (Accepted/Arrived/PickedUp/Delivered), the photo-proof upload endpoint, and the delivery PIN requirement were each confirmed via a real device network capture or a real API call, documented inline in `DriverAPI`'s class-level Javadoc
 
 **Still stubs — guessed, unverified, throw `UnsupportedOperationException`:**
-- `foodAPIs/authModule/AuthAPI.java`, `foodAPIs/orderModule/OrderAPI.java` — no confirmed backend contract yet (see `HANDOFF.md`)
+- `foodAPIs/authModule/AuthAPI.java`, `foodAPIs/orderModule/OrderAPI.java` — no confirmed backend contract yet
 - `utils/GSheetUpdate.java` — intentionally unimplemented, kept only in case a shared reporting sheet becomes a real requirement
 
 **`utils/MqttListener.java` — CONFIRMED (2026-09-30):** real-time order-status push
@@ -514,9 +531,9 @@ one (customer web + restaurant-admin + driver API automation) and `admin-portal-
 with its own `mvn` commands. `AdminCreatedRestaurantOrderLifecycleTest` is the only thing in
 this project that touches the other one - it shells the other project's suite out as a
 separate process and reads back the local file it writes when done (see
-`utils.AdminCreatedRestaurant`, §3's "Admin-created restaurant lifecycle test"). Open
-`hopon-food-automation.code-workspace` (repo root) in VS Code to see both projects side by
-side without merging their folders.
+`utils.AdminCreatedRestaurant`, §3's "Admin-created restaurant lifecycle test"). In
+VS Code, add `admin-portal-automation/` as a second folder (File > Add Folder to Workspace) to see both
+projects side by side without merging them.
 
 ```
 hopon-food-automation/

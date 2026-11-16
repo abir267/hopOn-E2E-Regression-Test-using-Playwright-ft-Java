@@ -12,12 +12,10 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.RequestOptions;
 import com.microsoft.playwright.options.WaitUntilState;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -25,8 +23,6 @@ public class RestaurantActivationApi {
 
     private static final String ACTIVATION_URL =
             "https://dev-api.hoponbd.com/services/admin/api/restaurant-activation";
-    private static final String ADMIN_CONFIG_FALLBACK =
-            "admin-portal-automation/src/test/resources/config.properties";
     private static final List<String> HEADERS_TO_REUSE = List.of(
             "authorization", "device-id", "platform", "source-app", "time-zone",
             "accept-language", "origin", "referer");
@@ -46,10 +42,10 @@ public class RestaurantActivationApi {
         String action = activated ? "ACTIVATE" : "DEACTIVATE";
         System.out.println("[ADMIN-API] " + action + " restaurant " + restaurantName + " (id=" + restaurantId + ")");
 
-        Properties fallback = loadFallback();
-        String url = value("admin.portal.url", "admin.url", fallback);
-        String email = value("admin.portal.email", "admin.email", fallback);
-        String password = value("admin.portal.password", "admin.password", fallback);
+        // admin.portal.* with the admin-portal-automation fallback (see ConfigReader.adminPortalValue)
+        String url = ConfigReader.adminPortalUrl();
+        String email = ConfigReader.adminPortalEmail();
+        String password = ConfigReader.adminPortalPassword();
 
         BrowserContext context = browser.newContext(new Browser.NewContextOptions().setViewportSize(1440, 900));
         try {
@@ -113,26 +109,4 @@ public class RestaurantActivationApi {
         }
     }
 
-    private static String value(String key, String fallbackKey, Properties fallback) {
-        String v = ConfigReader.get(key, "");
-        if (!v.isEmpty() && !"CHANGE_ME".equals(v)) {
-            return v;
-        }
-        v = fallback.getProperty(fallbackKey);
-        if (v == null || v.isBlank()) {
-            throw new IllegalStateException("Missing \"" + key + "\" in TestData.properties and \"" + fallbackKey
-                    + "\" in " + ADMIN_CONFIG_FALLBACK);
-        }
-        return v.trim();
-    }
-
-    private static Properties loadFallback() {
-        Properties props = new Properties();
-        try (FileInputStream in = new FileInputStream(ADMIN_CONFIG_FALLBACK)) {
-            props.load(in);
-        } catch (IOException ignored) {
-            // no fallback file - TestData.properties keys must then be present
-        }
-        return props;
-    }
 }

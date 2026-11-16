@@ -7,7 +7,7 @@ import java.util.Properties;
 
 public class AdminCreatedRestaurant {
 
-    private static final String FILE_PATH = "admin-portal-automation/target/last-created-restaurant.properties";
+    static final String FILE_PATH ="admin-portal-automation/target/last-created-restaurant.properties";
 
     public record CreatedRestaurant(String name, String email, String password,
                                      String restaurantId, String category, String food) {

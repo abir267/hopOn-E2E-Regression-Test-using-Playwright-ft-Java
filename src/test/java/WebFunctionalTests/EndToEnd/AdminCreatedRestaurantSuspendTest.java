@@ -12,6 +12,7 @@ import pages.WebPages.adminPortalPages.RestaurantOverviewPage;
 import pages.WebPages.adminPortalPages.RestaurantsListPage;
 import utils.AdminCreatedRestaurant;
 import utils.ConfigReader;
+import utils.Preflight;
 
 /**
  * Takes the restaurant admin-portal-automation most recently created (see
@@ -28,6 +29,7 @@ public class AdminCreatedRestaurantSuspendTest {
 
     @Test(description = "Admin portal: suspends the most recently admin-created restaurant via Restaurants > View > Suspend Account")
     public void suspendLatestAdminCreatedRestaurant() {
+        Preflight.checkSuspendFlow();
         AdminCreatedRestaurant.CreatedRestaurant restaurant = AdminCreatedRestaurant.latest();
         System.out.println("[ADMIN] Target restaurant: " + restaurant.name() + " (id=" + restaurant.restaurantId() + ")");
 

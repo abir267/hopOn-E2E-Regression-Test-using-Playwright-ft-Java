@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="HoponAdminCreatedRestaurantRealDriverSuite">
+
+    <!-- Orders from the restaurant admin-portal-automation created last (AdminCreatedRestaurant.latest()),
+         driver played by the REAL driver app on the USB-attached phone (adb) instead of DriverAPI.
+         Run: mvn test -DsuiteXmlFile=test-suites/adminCreatedRestaurantRealDriver.xml
+         Run it BEFORE the suspend suite - a suspended restaurant cannot take orders. -->
+    <test name="AdminCreatedRestaurantRealDriver">
+        <classes>
+            <class name="WebFunctionalTests.EndToEnd.AdminCreatedRestaurantRealDriverTest"/>
+        </classes>
+    </test>
+
+</suite>

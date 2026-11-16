@@ -45,6 +45,7 @@ public final class NetworkErrorCapture {
             try {
                 System.out.println("[BUG][" + role + "] " + response.status() + " " + response.request().method()
                         + " " + response.url());
+                BugReport.http(role, response.status(), response.request().method(), response.url());
             } catch (Throwable ignored) {
                 // Best-effort logging only - never let this listener break the page's own actions.
             }

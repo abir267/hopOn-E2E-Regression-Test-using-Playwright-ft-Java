@@ -103,6 +103,17 @@ public final class MqttConsoleCapture {
         return SEEN.contains(role + "|" + orderNo + "|" + status);
     }
 
+    /** True if this role (e.g. "DRIVER", fed from the phone's log by DriverMqttLog) has printed a push for the order with this status. */
+    public static boolean sawStatus(String role, String orderNo, String status) {
+        return seen(role, orderNo, status);
+    }
+
+    /** True if ANY attached role has printed a push for this order with this status (use after {@link #awaitStatus}). */
+    public static boolean sawStatus(String orderNo, String status) {
+        String suffix = "|" + orderNo + "|" + status;
+        return SEEN.stream().anyMatch(key -> key.endsWith(suffix));
+    }
+
     /**
      * Walks the buffered bytes, prints every complete PUBLISH packet, and returns the
      * trailing bytes of an incomplete packet (kept until the next frame completes it).
@@ -170,7 +181,7 @@ public final class MqttConsoleCapture {
      * lines also show the message text. With -Dmqtt.full=true the full pretty-printed JSON is
      * printed below it.
      */
-    private static void printMessage(String role, String topic, String payload) {
+    public static void printMessage(String role, String topic, String payload) {
         try {
             JsonNode root = MAPPER.readTree(payload);
             if (!root.has("orderNo") && (root.has("message") || root.has("data"))) { // chat message push
@@ -178,7 +189,10 @@ public final class MqttConsoleCapture {
                         : root.path("data").has("content") ? root.path("data").path("content")
                         : root.path("data").has("message") ? root.path("data") : root;
                 String text = chat.path("message").asText("");
-                String from = chat.path("senderSource").asText(chat.path("mySelf").asBoolean(false) ? "RIDER" : "DRIVER");
+                // "mySelf" is relative to whoever received the push: the customer's own message is "RIDER" on the customer's
+                // side but the OTHER party on the driver's side, so the default label flips for the DRIVER role.
+                boolean mine = chat.path("mySelf").asBoolean(false);
+                String from = chat.path("senderSource").asText("DRIVER".equals(role) == mine ? "DRIVER" : "RIDER");
                 String chatArrow = ConsoleLogListener.UNICODE ? "←" : "<-";
                 if (text.isEmpty()) {
                     System.out.println("[MQTT] " + chatArrow + " [" + role + "] chat push: " + payload);

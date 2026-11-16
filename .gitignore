@@ -13,3 +13,14 @@ test-suites/mobile-testng.xml
 
 # Standalone API testing sandbox (Postman/Newman) - exploratory, not pushed
 api-testing/
+
+# Local notes, bug-tracker exports, generated HTML reports, login-flow screenshots and the VS Code workspace (not pushed)
+/HANDOFF.md
+/sqa.md
+/HOP-Bug-Tracker.xlsx
+/HOP-Bug-Tracker.xml
+/hopon-food-automation.code-workspace
+/ls[0-9]_*.png
+/mqtt-integration.html
+/readme.html
+/validationflows.html

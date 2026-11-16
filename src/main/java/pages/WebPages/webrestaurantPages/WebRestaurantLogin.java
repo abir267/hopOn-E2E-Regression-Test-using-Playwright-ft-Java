@@ -1,5 +1,6 @@
 package pages.WebPages.webrestaurantPages;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.AriaRole;
@@ -28,26 +29,51 @@ public class WebRestaurantLogin extends AdminBasePage {
     }
 
     /**
-     * Not a bare page.navigate(url): that waits for the full "load" event, which the dev portal
-     * sometimes never fires within 30s (slow third-party/map/font resources) - seen live as
-     * "TimeoutError: navigating to https://dev-foodadmin.hoponbd.com/, waiting until load".
-     * The login form only needs the DOM (enterEmail() auto-waits for the input), so wait for
-     * DOMCONTENTLOADED, allow 60s, and retry once on a timeout.
+     * Not a bare page.navigate(url): that waits for the full "load" event, which the dev portal sometimes never fires within
+     * 30s (slow third-party/map/font resources). The login form only needs the DOM, so wait for DOMCONTENTLOADED and allow 60s.
+     * ONE attempt: when it fails the error is printed and the test stops (user instruction 2026-11-16 - no automatic retries,
+     * the user reruns by hand).
      */
     private static void navigateToLogin(Page page) {
-        String url = ConfigReader.restaurantAdminUrl();
-        Page.NavigateOptions options = new Page.NavigateOptions()
+        page.navigate(ConfigReader.restaurantAdminUrl(), new Page.NavigateOptions()
                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
-                .setTimeout(60000);
+                .setTimeout(60000));
+    }
+
+    /**
+     * Seen live, intermittently: the portal page loads but the Angular login form never renders. CONFIRMED from the stuck
+     * page's own text: Chrome shows "This site can't be reached - dev-admin.hoponbd.com took too long to respond" (the login
+     * redirects to that shared auth host, which drops connections in bursts of a few minutes while curl still reaches it).
+     * One wait, then the real reason is printed (screenshot + the page's text) and the test stops.
+     */
+    private void ensureLoginFormRendered() {
         try {
-            page.navigate(url, options);
-        } catch (TimeoutError firstAttempt) {
-            System.out.println("[RESTAURANT] Portal login page timed out after 60s - retrying once: " + url);
-            page.navigate(url, options);
+            page.locator(EMAIL_INPUT).waitFor(new Locator.WaitForOptions().setTimeout(30000));
+        } catch (TimeoutError notRendered) {
+            String shown = describeStuckPage();
+            throw new IllegalStateException("Restaurant portal login form did not render within 30s at " + page.url()
+                    + ". The page showed: " + shown, notRendered);
+        }
+    }
+
+    /** What the page really shows when the form is missing: a screenshot under target/ plus the visible text. Returns the text. */
+    private String describeStuckPage() {
+        try {
+            java.nio.file.Path shot = java.nio.file.Paths.get("target", "restaurant-login-stuck.png");
+            page.screenshot(new Page.ScreenshotOptions().setPath(shot));
+            String text = page.locator("body").innerText().replaceAll("\\s+", " ").trim();
+            String shortText = text.length() > 200 ? text.substring(0, 200) + "..." : text;
+            System.out.println("[RESTAURANT] Login page stuck - screenshot " + shot.toAbsolutePath() + " | text: " + shortText);
+            utils.BugReport.environment("RESTAURANT", "restaurant portal login page " + page.url(),
+                    "Login form never rendered - the page showed: " + shortText);
+            return shortText;
+        } catch (RuntimeException e) {
+            return "(could not read the page: " + e.getMessage() + ")";
         }
     }
 
     public WebRestaurantLogin enterEmail(String email) {
+        ensureLoginFormRendered();
         type(EMAIL_INPUT, email);
         return this;
     }

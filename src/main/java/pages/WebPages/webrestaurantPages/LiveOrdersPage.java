@@ -99,6 +99,8 @@ public class LiveOrdersPage extends AdminBasePage {
         try {
             JsonNode json = mapper.readTree(response.text());
             if (!response.ok()) {
+                // No automatic second click (user instruction 2026-11-16: print the error and stop). A gateway/WAF refusal has been
+                // seen here once: 403 with an empty body on POST .../food-orders/restaurant/acknowledge.
                 throw new IllegalStateException("markReadyForPickup failed: " + response.status()
                         + " " + response.statusText() + " - " + json);
             }
@@ -106,6 +108,38 @@ public class LiveOrdersPage extends AdminBasePage {
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new RuntimeException("Non-JSON response from markReadyForPickup(): " + response.text(), e);
         }
+    }
+
+    /**
+     * Accepts the order if it is waiting in the "New" tab and returns true. If it is NOT in New - the platform often puts a fresh
+     * order straight into Preparing now (CONFIRMED 2026-11-16: the customer's modal says "Preparing your food" within a second and
+     * the order is listed under Preparing, never under New) - it opens it from the Preparing tab instead and returns false.
+     * Either way the order's detail panel is open afterwards, ready for pickupPin().
+     */
+    public boolean acceptIfNew(String orderNo) {
+        openTab("New");
+        if (waitForOrderListed(orderNo, 6000)) {
+            openOrder(orderNo);
+            acceptAndStartPreparing();
+            return true;
+        }
+        openTab("Preparing");
+        if (!waitForOrderListed(orderNo, 10000)) {
+            throw new IllegalStateException("Order " + orderNo + " is in neither the New nor the Preparing tab of the restaurant portal");
+        }
+        openOrder(orderNo);
+        return false;
+    }
+
+    private boolean waitForOrderListed(String orderNo, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            if (page.getByText(orderNo, new Page.GetByTextOptions().setExact(false)).count() > 0) {
+                return true;
+            }
+            page.waitForTimeout(500);
+        } while (System.currentTimeMillis() < deadline);
+        return false;
     }
 
     /**

@@ -4,7 +4,8 @@ import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
 /**
- * Retries a failed @Test up to MAX_RETRY times before letting it stay failed.
+ * OFF by default (2026-11-16, user instruction: when a test fails, stop and print the error - the user reruns it by hand).
+ * Run with -Dtest.retry=true to get the old behaviour back: retries a failed @Test up to MAX_RETRY times.
  *
  * Bumped from 2 to 4 (2026-09-29): under heavy same-session usage (many real
  * logins in a short window, as this whole test suite does), OTP-box render
@@ -22,6 +23,9 @@ public class RetryAnalyzer implements IRetryAnalyzer {
 
     @Override
     public boolean retry(ITestResult result) {
+        if (!Boolean.getBoolean("test.retry")) {
+            return false;
+        }
         if (retryCount < MAX_RETRY) {
             retryCount++;
             System.out.printf("Retrying '%s' (attempt %d/%d)%n",
