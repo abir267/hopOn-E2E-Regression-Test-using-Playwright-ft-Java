@@ -15,6 +15,8 @@ import java.time.format.DateTimeFormatter;
  *
  *   bug_results/bug-log.csv          one row per finding, appended by every run (open it in Excel / filter by kind or run_id)
  *   bug_results/error-logs/*.txt     the full error log (cause chain + trimmed stack) of every failed test, one file each
+ *   bug_results/terminal-logs/<run_id>.log   everything a run printed to the terminal (same lines, same [hh:mm:ss] stamps),
+ *                                    one file per run; run_id is the same one the CSV rows carry
  *   bug_results/KNOWN_FINDINGS.md    the findings written up by hand (what they are, how they were confirmed)
  *
  * Kinds in the CSV:
@@ -37,6 +39,33 @@ public final class BugReport {
     private static final String RUN_ID = LocalDateTime.now().format(FILE_STAMP);
 
     private static volatile String currentTest = "";
+
+    private static final Path TERMINAL_LOG = DIR.resolve("terminal-logs").resolve(RUN_ID + ".log");
+    private static java.io.BufferedWriter terminalWriter;
+
+    /** The id every row of this run carries (and the name of this run's terminal log). */
+    public static String runId() {
+        return RUN_ID;
+    }
+
+    /**
+     * Appends one terminal line to this run's terminal log. Called for every line the tests print (ConsoleLogListener), already
+     * without colour codes. Flushed per line so a crash or Ctrl+C loses nothing.
+     */
+    public static synchronized void terminal(String line) {
+        try {
+            if (terminalWriter == null) {
+                Files.createDirectories(TERMINAL_LOG.getParent());
+                terminalWriter = Files.newBufferedWriter(TERMINAL_LOG, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            }
+            terminalWriter.write(line);
+            terminalWriter.newLine();
+            terminalWriter.flush();
+        } catch (IOException | RuntimeException ignored) {
+            // best-effort - printing must never fail because the log file could not be written
+        }
+    }
 
     private BugReport() {
     }

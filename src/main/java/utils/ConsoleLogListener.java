@@ -284,9 +284,11 @@ public class ConsoleLogListener implements ITestListener, IInvokedMethodListener
             String out;
             if (text.startsWith("    ")) { // continuation (pretty JSON body): dim, no time/icon
                 out = paint(DIM, text);
+                BugReport.terminal(text);
             } else {
                 String time = "[" + LocalTime.now().format(TIME) + "] ";
                 out = paint(DIM, time) + decorate(text);
+                BugReport.terminal(time + text);   // the same line, kept for good under bug_results/terminal-logs/
             }
             delegate.write((out + System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
             delegate.flush();
